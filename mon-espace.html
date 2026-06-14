@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mon espace · careaffinity</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--cream:#FBF5F0;--card:#fff;--line:#EADBD0;--coral:#D97A5E;--coral-deep:#C25A45;--coral-tint:#F7E2D8;--forest:#21433B;--ink:#2B2420;--muted:#6E635C;--ok:#2E7D5B;--ok-tint:#DCEFE5;--warn:#B5742A;--warn-tint:#F7E7CF}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Mulish',system-ui,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:560px;margin:0 auto;padding:0 18px 60px}
+  h1,h2,h3{font-family:'Fraunces',serif}
+  .brand{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--forest)}
+
+  #login{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  #login .brand{font-size:1.9rem;margin-bottom:4px}
+  #login .sub{color:var(--muted);margin-bottom:26px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:390px;text-align:left;box-shadow:0 14px 34px -24px rgba(43,36,32,.5)}
+  label{display:block;font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;margin:0 0 6px 2px}
+  input{width:100%;font-family:inherit;font-size:1rem;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;background:#fff;margin-bottom:13px}
+  input:focus{outline:none;border-color:var(--coral)}
+  .btn{width:100%;background:var(--forest);color:#fff;font-family:inherit;font-weight:800;font-size:1rem;padding:13px;border:none;border-radius:12px;cursor:pointer}
+  .btn.alt{background:var(--coral)}
+  .btn:disabled{opacity:.5}
+  .sep{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.82rem;margin:16px 0}
+  .sep::before,.sep::after{content:"";flex:1;height:1px;background:var(--line)}
+  .small{font-size:.85rem;color:var(--muted);text-align:center;margin-top:12px}
+  .link{background:none;border:none;color:var(--coral-deep);font-weight:700;font-family:inherit;cursor:pointer;font-size:.9rem}
+  .msg{font-size:.9rem;margin-top:10px;min-height:1.1em}
+  .msg.err{color:var(--coral-deep)} .msg.ok{color:var(--ok)}
+
+  #app{display:none}
+  header{background:var(--forest);color:#fff;padding:13px 0}
+  header .wrap{padding-bottom:0;display:flex;align-items:center;justify-content:space-between}
+  header .brand{color:#fff;font-size:1.2rem}
+  header .out{background:rgba(255,255,255,.14);border:none;color:#fff;font-family:inherit;font-weight:700;font-size:.82rem;padding:8px 12px;border-radius:9px;cursor:pointer}
+  .hi{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--forest);margin:20px 0 4px}
+  .section{margin-top:22px}.section h2{font-size:1.1rem;color:var(--forest);margin-bottom:10px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:11px}
+  .item .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+  .item .who{font-weight:700;font-size:1.05rem}
+  .badge{font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:999px;margin-right:5px}
+  .b-proche{background:#D8E5E0;color:var(--forest)} .b-enfants{background:var(--coral-tint);color:var(--coral-deep)}
+  .b-ok{background:var(--ok-tint);color:var(--ok)} .b-new{background:var(--coral);color:#fff} .b-wait{background:var(--warn-tint);color:var(--warn)}
+  .meta{font-size:.92rem;color:var(--muted);line-height:1.5;margin-top:4px}
+  .go{display:inline-block;margin-top:10px;background:var(--forest);color:#fff;text-decoration:none;font-weight:700;padding:10px 15px;border-radius:10px;font-size:.9rem}
+  .empty{color:var(--muted);font-size:.95rem;background:#fff;border:1px dashed var(--line);border-radius:13px;padding:18px;text-align:center}
+  .loading{text-align:center;color:var(--muted);padding:30px}
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<div id="login">
+  <div class="brand">careaffinity</div>
+  <div class="sub">Connexion</div>
+  <div class="box">
+    <label>Votre email</label>
+    <input id="email" type="email" autocomplete="email" placeholder="vous@exemple.fr">
+    <button class="btn alt" id="magicBtn" onclick="magicLink()">📩 Recevoir un lien de connexion</button>
+    <div class="sep">ou avec un mot de passe</div>
+    <input id="pwd" type="password" autocomplete="current-password" placeholder="Mot de passe">
+    <button class="btn" id="pwBtn" onclick="pwLogin()">Se connecter</button>
+    <div class="small">Première visite ? <button class="link" onclick="pwSignup()">Créer mon compte</button></div>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header><div class="wrap"><span class="brand">careaffinity</span><button class="out" onclick="logout()">Déconnexion</button></div></header>
+  <div class="wrap">
+    <div class="hi" id="hi">Bonjour 👋</div>
+    <div id="body"><div class="loading">Chargement…</div></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://tiappxjyhysezrbssuiz.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function setMsg(t,ok){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
+function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
+
+async function magicLink(){
+  const email=document.getElementById('email').value.trim();
+  if(!email){setMsg('Entrez votre email.');return;}
+  const b=document.getElementById('magicBtn');b.disabled=true;b.textContent='Envoi…';
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  b.disabled=false;b.textContent='📩 Recevoir un lien de connexion';
+  if(error){setMsg(error.message);return;}
+  setMsg('Lien envoyé ! Ouvrez votre boîte mail et cliquez sur le lien.',true);
+}
+async function pwLogin(){
+  const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
+  if(!email||!pwd){setMsg('Email et mot de passe requis.');return;}
+  const {error}=await sb.auth.signInWithPassword({email,password:pwd});
+  if(error){setMsg('Identifiants incorrects, ou compte inexistant.');return;}
+  enter();
+}
+async function pwSignup(){
+  const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
+  if(!email||!pwd){setMsg('Entrez un email et choisissez un mot de passe.');return;}
+  const {data,error}=await sb.auth.signUp({email,password:pwd,options:{emailRedirectTo:location.origin+location.pathname}});
+  if(error){setMsg(error.message);return;}
+  if(data.session){enter();} else {setMsg('Compte créé ! Vérifiez vos emails pour confirmer, puis connectez-vous.',true);}
+}
+async function logout(){await sb.auth.signOut();location.reload();}
+
+async function getProfile(uid){const {data}=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();return data;}
+
+async function enter(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user)return;
+  const prof=await getProfile(user.id);
+  if(!prof){ chooseRole(); return; }
+  route(prof,user);
+}
+function chooseRole(){
+  document.getElementById('hi').textContent='Bienvenue 👋';
+  document.getElementById('body').innerHTML=
+    '<div class="empty" style="text-align:left">Pour finaliser votre accès, dites-nous qui vous êtes :</div>'
+    +'<div style="display:flex;gap:10px;margin-top:14px">'
+    +'<button class="btn" style="flex:1" onclick="setRole(\'famille\')">Je suis une famille</button>'
+    +'<button class="btn alt" style="flex:1" onclick="setRole(\'intervenant\')">Je suis intervenant·e</button>'
+    +'</div>';
+}
+async function setRole(role){
+  const {data:{user}}=await sb.auth.getUser();
+  const {error}=await sb.from('profiles').insert({id:user.id,role});
+  if(error){alert(error.message);return;}
+  route({id:user.id,role},user);
+}
+function route(prof,user){
+  document.getElementById('hi').textContent='Bonjour'+(prof.prenom?' '+prof.prenom:'')+' 👋';
+  if(prof.role==='admin'){document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Vous êtes connectée en administratrice.</div><a class="go" href="admin.html" style="margin-top:12px">Ouvrir le cockpit →</a>';return;}
+  if(prof.role==='intervenant'){return renderIntervenant();}
+  return renderFamille();
+}
+
+function monthTotal(pts,missionId){
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth()+1;
+  return pts.filter(p=>p.mission_id===missionId&&(()=>{const d=new Date(p.date);return d.getFullYear()===y&&(d.getMonth()+1)===mo;})()).reduce((s,p)=>s+p.minutes,0);
+}
+
+async function renderFamille(){
+  const [rd,rm,rp]=await Promise.all([
+    sb.from('demandes').select('*').order('created_at',{ascending:false}),
+    sb.from('missions').select('*').order('created_at',{ascending:false}),
+    sb.from('pointages').select('*')
+  ]);
+  const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[];
+  let h='<div class="section"><h2>Ma demande</h2>';
+  if(!demandes.length){h+='<div class="empty">Aucune demande associée à votre compte pour l\'instant.</div>';}
+  else{h+=demandes.map(d=>{
+    const st=d.statut==='traitee'?'<span class="badge b-ok">Traitée</span>':d.statut==='en_cours'?'<span class="badge b-wait">En cours</span>':d.statut==='rappelee'?'<span class="badge b-ok">Rappelée</span>':'<span class="badge b-new">Reçue</span>';
+    return '<div class="item"><div class="badges" style="margin-bottom:6px"><span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+st+'</div><div class="meta">📍 '+(d.commune||'-')+'</div></div>';
+  }).join('');}
+  h+='</div><div class="section"><h2>Mes intervenants</h2>';
+  if(!missions.length){h+='<div class="empty">Dès que Chloé vous a proposé un intervenant, il apparaîtra ici avec le suivi des heures.</div>';}
+  else{h+=missions.map(m=>{
+    const tot=monthTotal(pts,m.id);
+    const montant=m.taux_horaire?(tot/60*Number(m.taux_horaire)).toFixed(2)+' €':'';
+    return '<div class="item"><div class="top"><div class="who">'+(m.intervenant_nom||'—')+'</div></div>'
+      +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span></div>'
+      +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
+      +'<a class="go" href="pointage.html?m='+m.token+'">Voir / valider les heures →</a></div>';
+  }).join('');}
+  h+='</div>';
+  document.getElementById('body').innerHTML=h;
+}
+
+async function renderIntervenant(){
+  const [rm,rp]=await Promise.all([
+    sb.from('missions').select('*').order('created_at',{ascending:false}),
+    sb.from('pointages').select('*')
+  ]);
+  const missions=rm.data||[], pts=rp.data||[];
+  let h='<div class="empty" style="text-align:left">Votre espace intervenant arrive très bientôt 🛠️<br>En attendant, vous pouvez saisir vos heures depuis le lien de pointage que Chloé vous envoie.</div>';
+  if(missions.length){
+    h+='<div class="section"><h2>Mes missions</h2>'+missions.map(m=>{
+      const tot=monthTotal(pts,m.id);
+      return '<div class="item"><div class="who">'+(m.famille_prenom||'—')+'</div><div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b></div><a class="go" href="pointage.html?m='+m.token+'">Pointer mes heures →</a></div>';
+    }).join('')+'</div>';
+  }
+  document.getElementById('body').innerHTML=h;
+}
+
+// Détecte la connexion (y compris au retour du lien magique)
+sb.auth.onAuthStateChange((_e,session)=>{ if(session && document.getElementById('app').style.display!=='block') enter(); });
+(async()=>{ const {data:{session}}=await sb.auth.getSession(); if(session) enter(); })();
+</script>
+</body>
+</html>
