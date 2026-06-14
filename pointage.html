@@ -46,8 +46,11 @@
 
   .recap{background:#fff;border:2px solid var(--ok);border-radius:15px;padding:16px;margin-top:8px}
   .recap h3{color:var(--ok);margin-bottom:10px}
-  .recap .row{display:flex;justify-content:space-between;margin:5px 0;font-size:.96rem}
+  .recap .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:7px 0;font-size:.96rem}
   .recap .row .v{font-weight:800}
+  .recap .rv{display:flex;align-items:center;gap:8px}
+  .cp{background:var(--forest);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-family:inherit;font-weight:700;font-size:.74rem;cursor:pointer}
+  .openurssaf{display:block;text-align:center;background:var(--coral);color:#fff;text-decoration:none;font-weight:800;padding:14px;border-radius:11px;margin-top:14px;font-size:1.02rem}
   .recap .hint{font-size:.84rem;color:var(--muted);margin-top:10px}
 
   .validate{width:100%;background:var(--coral);color:#fff;font-family:inherit;font-weight:800;font-size:1.05rem;padding:15px;border:none;border-radius:12px;cursor:pointer;margin-top:4px}
@@ -131,11 +134,15 @@ function render(){
   // validation + récap
   if(items.length){
     if(allValid){
+      const hoursStr=hours.toFixed(2).replace('.',',');
+      const netStr=montant!=null?montant.toFixed(2).replace('.',','):'';
+      const urssafUrl=mission.regime==='pajemploi'?'https://www.pajemploi.urssaf.fr':'https://www.cesu.urssaf.fr';
       html+='<div class="recap"><h3>✅ Heures validées — à déclarer</h3>'
         +'<div class="row"><span>Période</span><span class="v">'+MOIS[ym.getMonth()]+' '+ym.getFullYear()+'</span></div>'
-        +'<div class="row"><span>Total d\'heures</span><span class="v">'+hours.toFixed(2).replace('.',',')+' h</span></div>'
-        +(montant!=null?'<div class="row"><span>Salaire net</span><span class="v">'+montant.toFixed(2)+' €</span></div>':'')
-        +'<div class="hint">À recopier dans votre espace '+regimeLabel+' ('+(mission.regime==='pajemploi'?'pajemploi.urssaf.fr':'cesu.urssaf.fr')+') pour la déclaration du mois.</div></div>';
+        +'<div class="row"><span>Nombre d\'heures</span><span class="rv"><span class="v">'+hoursStr+' h</span><button class="cp" onclick="cp(this,\''+hoursStr+'\')">Copier</button></span></div>'
+        +(montant!=null?'<div class="row"><span>Salaire net</span><span class="rv"><span class="v">'+netStr+' €</span><button class="cp" onclick="cp(this,\''+netStr+'\')">Copier</button></span></div>':'')
+        +'<a class="openurssaf" href="'+urssafUrl+'" target="_blank" rel="noopener">Ouvrir '+regimeLabel+' pour déclarer →</a>'
+        +'<div class="hint">Connectez-vous, choisissez « Déclarer », et collez les 2 valeurs ci-dessus pour le mois.</div></div>';
     } else {
       html+='<button class="validate" onclick="validate()">✅ Je valide ces heures</button>'
         +'<div class="muted">Une fois validé, le récapitulatif à déclarer s\'affiche.</div>';
@@ -145,6 +152,7 @@ function render(){
   document.getElementById('root').innerHTML=html;
 }
 
+window.cp=(el,val)=>{navigator.clipboard.writeText(val).then(()=>{const t=el.textContent;el.textContent='Copié ✓';setTimeout(()=>el.textContent=t,1200);}).catch(()=>prompt('Copiez :',val));};
 window.changeMonth=v=>{const[y,m]=v.split('-').map(Number);ym=new Date(y,m-1,1);render();};
 window.add=async()=>{
   const date=document.getElementById('a_date').value, deb=document.getElementById('a_debut').value, fin=document.getElementById('a_fin').value, note=document.getElementById('a_note').value.trim();
