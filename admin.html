@@ -64,6 +64,8 @@
   .badge{font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:999px}
   .b-proche{background:#D8E5E0;color:var(--forest)} .b-enfants{background:var(--coral-tint);color:var(--coral-deep)}
   .b-new{background:var(--coral);color:#fff} .b-ok{background:var(--ok-tint);color:var(--ok)} .b-wait{background:var(--warn-tint);color:var(--warn)}
+  .b-urg{background:#C2392B;color:#fff}
+  .item.urg{border-color:#C2392B;box-shadow:0 0 0 3px #F3D6D2}
   .actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
   .act{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.82rem;cursor:pointer;color:var(--ink)}
   .act.green{border-color:var(--ok);color:var(--ok)} .act.red{border-color:var(--coral-deep);color:var(--coral-deep)}
@@ -190,6 +192,7 @@ async function reload(){
     sb.from('intervenants').select('*').order('created_at',{ascending:false})
   ]);
   dataD=rd.data||[]; dataI=ri.data||[];
+  dataD.sort((a,b)=>((b.urgent&&b.statut==='nouvelle')?1:0)-((a.urgent&&a.statut==='nouvelle')?1:0));
   setCount('cntD',dataD.filter(x=>x.statut==='nouvelle').length);
   setCount('cntI',dataI.filter(x=>x.statut==='a_verifier').length);
   render();
@@ -204,13 +207,15 @@ function render(){
     if(!dataD.length){box.innerHTML='<div class="empty">Aucune demande pour l\'instant.</div>';return;}
     box.innerHTML=dataD.map(d=>{
       const isNew=d.statut==='nouvelle';
+      const isUrg=d.urgent && d.statut==='nouvelle';
       const stBadge = d.statut==='traitee' ? '<span class="badge b-ok">Traitée</span>'
         : d.statut==='rappelee' ? '<span class="badge b-ok">Rappelée</span>'
         : d.statut==='en_cours' ? '<span class="badge b-wait">En cours</span>'
         : '<span class="badge b-new">Nouvelle</span>';
-      return '<div class="item '+(isNew?'new':'')+'">'
+      const urgBadge = d.urgent ? '<span class="badge b-urg">⚡ Urgent</span>' : '';
+      return '<div class="item '+(isUrg?'urg':(isNew?'new':''))+'">'
         +'<div class="top"><div class="who">'+(d.prenom||'—')+'</div><div class="date">'+fmtDate(d.created_at)+'</div></div>'
-        +'<div class="badges"><span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+stBadge+'</div>'
+        +'<div class="badges">'+urgBadge+'<span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+stBadge+'</div>'
         +'<div class="meta">📍 '+(d.commune||'-')+' · 📞 '+tel(d.telephone)+'</div>'
         +'<div class="actions">'
         +'<button class="act '+(d.statut==='rappelee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'rappelee\')">Rappelée</button>'

@@ -107,6 +107,11 @@
   .ffield input:focus{outline:none;border-color:var(--coral)}
   .submit{width:100%;background:var(--coral);color:#fff;font-family:inherit;font-weight:800;font-size:1.08rem;padding:15px;border:none;border-radius:13px;cursor:pointer;margin-top:4px}
   .submit:disabled{opacity:.4}
+  .urgent-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:12px;cursor:pointer}
+  .urgent-row .sw2{width:46px;height:27px;border-radius:999px;background:var(--line);position:relative;transition:.15s;flex:none}
+  .urgent-row .sw2.on{background:#C2392B}
+  .urgent-row .sw2::after{content:"";position:absolute;width:21px;height:21px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.15s}
+  .urgent-row .sw2.on::after{left:22px}
   .or-sep{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.84rem;margin:18px 0 14px}
   .or-sep::before,.or-sep::after{content:"";flex:1;height:1px;background:var(--line)}
   .direct-btns{display:flex;gap:9px}
@@ -148,7 +153,7 @@
       <span class="go">Continuer →</span>
     </button>
   </div>
-  <div class="chooser-foot">⏱️ 2 minutes · gratuit · on vous rappelle sous 24h</div>
+  <div class="chooser-foot">⏱️ 2 minutes · gratuit · rappelé·e sous 1h en journée</div>
   <button class="net-link" onclick="showNetwork()">Vous proposez vos services&nbsp;? <b>Rejoindre le réseau →</b></button>
 </div></div>
 
@@ -233,8 +238,12 @@
     <div class="ffield"><label>Votre commune</label><input id="f_commune" placeholder="ex. Talant, Chenôve, Dijon…"></div>
     <div class="ffield"><label>Votre prénom</label><input id="f_prenom" placeholder="Prénom"></div>
     <div class="ffield"><label>Votre téléphone</label><input id="f_tel" type="tel" inputmode="tel" placeholder="06 …"></div>
+    <div class="urgent-row" onclick="toggleUrgent()">
+      <div><div style="font-weight:700">⚡ C'est urgent</div><div style="font-size:.82rem;color:var(--muted)">Sortie d'hôpital, imprévu, besoin rapide…</div></div>
+      <div class="sw2" id="urgSw"></div>
+    </div>
     <button class="submit" id="f_submit" disabled onclick="submitForm()">Envoyer ma demande</button>
-    <p style="font-size:.82rem;color:var(--muted);text-align:center;margin-top:10px">Sans engagement · gratuit · rappel sous 24h</p>
+    <p style="font-size:.82rem;color:var(--muted);text-align:center;margin-top:10px">Sans engagement · gratuit · rappel sous 1h en journée</p>
     <div class="or-sep">ou contactez Chloé directement</div>
     <div class="direct-btns">
       <a id="d_call" class="dbtn dbtn-call" href="#">
@@ -287,7 +296,7 @@ const CONTENT = {
     who:'Marie · sa maman est accompagnée · Talant',
     end:'Vous n\'avez pas à porter ça tout·e seul·e.',
     mtitle:'Aide pour votre proche', mctx:'Vous cherchez une aide pour <b>un proche âgé ou en situation de handicap</b>. On vous rappelle pour en parler.',
-    done:'On a bien reçu votre demande. Une personne de l\'équipe vous rappelle sous 24h pour parler de votre proche.'
+    done:'On a bien reçu votre demande. Une personne de l\'équipe vous rappelle sous 1h (en journée) pour parler de votre proche.'
   },
   enfants:{
     tag:'Garde d\'enfants', tagColor:'var(--coral-deep)',
@@ -307,10 +316,11 @@ const CONTENT = {
     who:'Julien · papa de deux enfants · Chenôve',
     end:'Et si vous passiez enfin à l\'action&nbsp;?',
     mtitle:'Une garde pour vos enfants', mctx:'Vous cherchez une <b>garde d\'enfants de confiance</b>. On vous rappelle pour trouver la bonne personne.',
-    done:'On a bien reçu votre demande. Une personne de l\'équipe vous rappelle sous 24h pour trouver la garde qu\'il vous faut.'
+    done:'On a bien reçu votre demande. Une personne de l\'équipe vous rappelle sous 1h (en journée) pour trouver la garde qu\'il vous faut.'
   }
 };
-let current=null;
+let current=null, formUrgent=false;
+function toggleUrgent(){ formUrgent=!formUrgent; document.getElementById('urgSw').classList.toggle('on',formUrgent); }
 function choose(key){
   current=key; const c=CONTENT[key];
   document.getElementById('xtag').textContent=c.tag; document.getElementById('xtag').style.color=c.tagColor;
@@ -333,6 +343,7 @@ function choose(key){
 }
 function backToChooser(){document.getElementById('experience').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
 function openForm(){const c=CONTENT[current];document.getElementById('mtitle').textContent=c.mtitle;document.getElementById('mctx').innerHTML=c.mctx;
+  formUrgent=false; document.getElementById('urgSw').classList.remove('on');
   var tel='+33606787368', wa='33606787368';
   var msg = current==='enfants'
     ? "Bonjour Chloé, je vous contacte via careaffinity au sujet d'une garde d'enfants."
@@ -345,7 +356,7 @@ function closeForm(){document.getElementById('ov').classList.remove('show');docu
 function check(){const ok=document.getElementById('f_commune').value.trim()&&document.getElementById('f_prenom').value.trim()&&document.getElementById('f_tel').value.trim();document.getElementById('f_submit').disabled=!ok;}
 ['f_commune','f_prenom','f_tel'].forEach(i=>document.getElementById(i).addEventListener('input',check));
 async function submitForm(){
-  const rec={type:current,commune:document.getElementById('f_commune').value.trim(),prenom:document.getElementById('f_prenom').value.trim(),telephone:document.getElementById('f_tel').value.trim(),source:'site'};
+  const rec={type:current,commune:document.getElementById('f_commune').value.trim(),prenom:document.getElementById('f_prenom').value.trim(),telephone:document.getElementById('f_tel').value.trim(),urgent:formUrgent,source:'site'};
   const btn=document.getElementById('f_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
   if(sb){ const {error}=await sb.from('demandes').insert(rec); if(error){alert("Une erreur est survenue. Réessayez, ou appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} }
   document.getElementById('doneMsg').textContent=CONTENT[current].done;

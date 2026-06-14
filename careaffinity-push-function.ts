@@ -27,8 +27,8 @@ Deno.serve(async (req) => {
     const { table, record } = await req.json();
     let title = "careaffinity", body = "Nouvelle activité";
     if (table === "demandes") {
-      title = "🟢 Nouvelle demande";
-      body = `${record.type === "enfants" ? "Garde d'enfants" : "Aide à un proche"} · ${record.commune ?? ""} · ${record.prenom ?? ""}`;
+      title = record.urgent ? "⚡ DEMANDE URGENTE" : "🟢 Nouvelle demande";
+      body = `${record.type === "enfants" ? "Garde d'enfants" : "Aide à un proche"} · ${record.commune ?? ""} · ${record.prenom ?? ""}${record.urgent ? " — à rappeler vite" : ""}`;
     } else if (table === "intervenants") {
       title = "👤 Nouvel intervenant";
       body = `${record.nom ?? ""} · ${record.zone ?? ""}`;
