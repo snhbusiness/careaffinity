@@ -45,6 +45,9 @@
   .net-hero h1{font-size:clamp(1.7rem,6vw,2.3rem);font-weight:500;color:var(--ink);margin-bottom:12px;line-height:1.12}
   .net-hero p{color:var(--muted);max-width:38ch;margin:0 auto}
   .netform{padding-bottom:40px}
+  .consent-row{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;margin:4px 0 14px;font-size:.9rem;line-height:1.45}
+  .consent-row input{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--forest)}
+  .consent-row label{margin:0;text-transform:none;letter-spacing:0;font-weight:500;color:var(--ink);cursor:pointer}
   .checks{display:grid;gap:9px;margin-bottom:4px}
   .check{display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:.98rem}
   .check .box{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
@@ -218,6 +221,7 @@
       <div class="ffield" style="margin-top:14px"><label>Spécialités (optionnel)</label><input id="n_spe" placeholder="Alzheimer, garde de nuit, tout-petits…"></div>
       <div class="ffield"><label>Années d'expérience</label><input id="n_exp" type="number" inputmode="numeric" placeholder="ex. 10"></div>
       <div class="ffield"><label>Vos disponibilités (optionnel)</label><input id="n_dispo" placeholder="ex. matins en semaine, week-ends…"></div>
+      <div class="consent-row"><input type="checkbox" id="n_casier" onchange="checkNet()"><label for="n_casier">J'accepte de fournir un <b>extrait de casier judiciaire (bulletin n° 3)</b> avant ma première mission.</label></div>
       <button class="submit" id="n_submit" disabled onclick="submitNetwork()">Envoyer mon inscription</button>
       <p style="font-size:.82rem;color:var(--muted);text-align:center;margin-top:10px">Gratuit · votre profil est vérifié avant d'être proposé aux familles.</p>
     </div>
@@ -368,11 +372,11 @@ async function submitForm(){
 function showNetwork(){document.getElementById('chooser').style.display='none';document.getElementById('experience').style.display='none';document.getElementById('netform').style.display='block';document.getElementById('netDone').classList.remove('show');document.getElementById('network').style.display='block';window.scrollTo(0,0);}
 function closeNetwork(){document.getElementById('network').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
 function tog(el){el.classList.toggle('on');el.querySelector('.box').textContent=el.classList.contains('on')?'✓':'';checkNet();}
-function checkNet(){const ok=document.getElementById('n_nom').value.trim()&&document.getElementById('n_tel').value.trim()&&document.getElementById('n_zone').value.trim();document.getElementById('n_submit').disabled=!ok;}
+function checkNet(){const ok=document.getElementById('n_nom').value.trim()&&document.getElementById('n_tel').value.trim()&&document.getElementById('n_zone').value.trim()&&document.getElementById('n_casier').checked;document.getElementById('n_submit').disabled=!ok;}
 ['n_nom','n_tel','n_zone'].forEach(i=>document.getElementById(i).addEventListener('input',checkNet));
 async function submitNetwork(){
   const services=[...document.querySelectorAll('#n_services .check.on')].map(e=>e.textContent.replace('✓','').trim());
-  const rec={nom:document.getElementById('n_nom').value.trim(),telephone:document.getElementById('n_tel').value.trim(),zone:document.getElementById('n_zone').value.trim(),services:services,specialites:document.getElementById('n_spe').value.trim(),experience:parseInt(document.getElementById('n_exp').value)||null,disponibilites:document.getElementById('n_dispo').value.trim()};
+  const rec={nom:document.getElementById('n_nom').value.trim(),telephone:document.getElementById('n_tel').value.trim(),zone:document.getElementById('n_zone').value.trim(),services:services,specialites:document.getElementById('n_spe').value.trim(),experience:parseInt(document.getElementById('n_exp').value)||null,disponibilites:document.getElementById('n_dispo').value.trim(),casier_consent:document.getElementById('n_casier').checked};
   const btn=document.getElementById('n_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
   if(sb){ const {error}=await sb.from('intervenants').insert(rec); if(error){alert("Une erreur est survenue. Réessayez.");console.error(error);btn.disabled=false;btn.textContent=old;return;} }
   document.getElementById('netform').style.display='none';

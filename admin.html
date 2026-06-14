@@ -65,6 +65,7 @@
   .b-proche{background:#D8E5E0;color:var(--forest)} .b-enfants{background:var(--coral-tint);color:var(--coral-deep)}
   .b-new{background:var(--coral);color:#fff} .b-ok{background:var(--ok-tint);color:var(--ok)} .b-wait{background:var(--warn-tint);color:var(--warn)}
   .b-urg{background:#C2392B;color:#fff}
+  .b-cas-ok{background:var(--ok-tint);color:var(--ok)} .b-cas-no{background:var(--warn-tint);color:var(--warn)}
   .item.urg{border-color:#C2392B;box-shadow:0 0 0 3px #F3D6D2}
   .actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
   .act{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.82rem;cursor:pointer;color:var(--ink)}
@@ -229,11 +230,14 @@ function render(){
     box.innerHTML=dataI.map(i=>{
       const isNew=i.statut==='a_verifier';
       const stBadge=i.statut==='valide'?'<span class="badge b-ok">Validé</span>':i.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">À vérifier</span>';
+      const casBadge = i.casier_ok ? '<span class="badge b-cas-ok">🛡️ Casier vérifié</span>'
+        : (i.casier_consent ? '<span class="badge b-cas-no">Casier à vérifier</span>' : '<span class="badge b-cas-no">Casier non accepté</span>');
       return '<div class="item '+(isNew?'new':'')+'">'
         +'<div class="top"><div class="who">'+(i.nom||'—')+'</div><div class="date">'+fmtDate(i.created_at)+'</div></div>'
-        +'<div class="badges">'+stBadge+'</div>'
+        +'<div class="badges">'+stBadge+casBadge+'</div>'
         +'<div class="meta">📞 '+tel(i.telephone)+' · 📍 '+(i.zone||'-')+'<br>🧰 '+((i.services||[]).join(', ')||'-')+(i.specialites?'<br>⭐ '+i.specialites:'')+(i.experience?'<br>⏳ '+i.experience+' ans':'')+(i.disponibilites?'<br>🕑 '+i.disponibilites:'')+'</div>'
         +'<div class="actions">'
+        +'<button class="act '+(i.casier_ok?'on':'')+'" onclick="setCasier(\''+i.id+'\','+(!i.casier_ok)+')">'+(i.casier_ok?'🛡️ Casier OK':'Marquer casier vérifié')+'</button>'
         +'<button class="act green '+(i.statut==='valide'?'on':'')+'" onclick="setI(\''+i.id+'\',\'valide\')">Valider</button>'
         +'<button class="act red '+(i.statut==='refuse'?'on':'')+'" onclick="setI(\''+i.id+'\',\'refuse\')">Refuser</button>'
         +'</div></div>';
@@ -241,7 +245,11 @@ function render(){
   }
 }
 async function setD(id,statut){await sb.from('demandes').update({statut}).eq('id',id);const x=dataD.find(d=>d.id===id);if(x)x.statut=statut;setCount('cntD',dataD.filter(d=>d.statut==='nouvelle').length);render();}
-async function setI(id,statut){await sb.from('intervenants').update({statut}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.statut=statut;setCount('cntI',dataI.filter(i=>i.statut==='a_verifier').length);render();}
+async function setCasier(id,val){await sb.from('intervenants').update({casier_ok:val}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.casier_ok=val;render();}
+async function setI(id,statut){
+  if(statut==='valide'){const x0=dataI.find(i=>i.id===id);if(x0&&!x0.casier_ok){alert('⚠️ Vérifiez d\'abord le casier judiciaire (bulletin n° 3) avant de valider cet intervenant.');return;}}
+  await sb.from('intervenants').update({statut}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.statut=statut;setCount('cntI',dataI.filter(i=>i.statut==='a_verifier').length);render();
+}
 
 init();
 </script>
