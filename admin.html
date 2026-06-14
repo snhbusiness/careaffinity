@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>careaffinity · Admin</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#21433B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="careaffinity">
+<link rel="apple-touch-icon" href="icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -19,7 +25,6 @@
   h1,h2,h3{font-family:'Fraunces',serif}
   .brand{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--forest)}
 
-  /* Login */
   #login{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
   #login .brand{font-size:1.8rem;margin-bottom:4px}
   #login .sub{color:var(--muted);margin-bottom:28px}
@@ -31,12 +36,15 @@
   .btn:disabled{opacity:.5}
   .err{color:var(--coral-deep);font-size:.88rem;margin-top:10px;min-height:1.1em}
 
-  /* App */
   #app{display:none}
   header{position:sticky;top:0;z-index:10;background:var(--forest);color:#fff;padding:12px 0}
   header .wrap{display:flex;align-items:center;justify-content:space-between}
   header .brand{color:#fff;font-size:1.2rem}
   header .out{background:rgba(255,255,255,.14);border:none;color:#fff;font-family:inherit;font-weight:700;font-size:.82rem;padding:8px 12px;border-radius:9px;cursor:pointer}
+
+  .notifbar{display:flex;align-items:center;gap:12px;background:var(--coral-tint);border:1px solid var(--coral);border-radius:13px;padding:12px 14px;margin:14px 0 4px;font-size:.9rem;color:var(--ink)}
+  .notifbar .notifbtn{margin-left:auto;background:var(--coral);color:#fff;border:none;font-family:inherit;font-weight:800;padding:9px 16px;border-radius:10px;cursor:pointer;white-space:nowrap}
+
   .tabs{display:flex;gap:8px;padding:16px 0 8px}
   .tab{flex:1;padding:11px;border:1.5px solid var(--line);background:#fff;border-radius:11px;font-family:inherit;font-weight:700;color:var(--muted);cursor:pointer;font-size:.95rem}
   .tab.on{border-color:var(--coral);background:var(--coral-tint);color:var(--coral-deep)}
@@ -68,7 +76,6 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- ===== CONNEXION ===== -->
 <div id="login">
   <div class="brand">careaffinity</div>
   <div class="sub">Espace administrateur</div>
@@ -82,13 +89,16 @@
   </div>
 </div>
 
-<!-- ===== APPLICATION ===== -->
 <div id="app">
   <header><div class="wrap">
     <span class="brand">careaffinity · admin</span>
     <button class="out" onclick="doLogout()">Déconnexion</button>
   </div></header>
   <div class="wrap">
+    <div id="notifBar" class="notifbar" style="display:none">
+      <span id="notifMsg">🔔 Activez les notifications pour être prévenue des nouvelles demandes.</span>
+      <button class="notifbtn" id="notifBtn" onclick="enableNotifs()">Activer</button>
+    </div>
     <div class="tabs">
       <button class="tab on" id="tabD" onclick="show('demandes')">Demandes<span class="count" id="cntD" style="display:none"></span></button>
       <button class="tab" id="tabI" onclick="show('intervenants')">Intervenants<span class="count" id="cntI" style="display:none"></span></button>
@@ -102,9 +112,10 @@
 </div>
 
 <script>
-/* ===== CONFIG (mêmes identifiants que le site) ===== */
+/* ===== CONFIG ===== */
 const SUPABASE_URL  = 'https://tiappxjyhysezrbssuiz.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
+const VAPID_PUBLIC  = 'BIQAac2L6D1FxK4jwN03m8w94A9n6_HZTMoTk3SGCAeYQK3FpVeWT70yOIa-Y01rQ5lEh2dck3-asnIK6cjMsgI';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 let tab='demandes', dataD=[], dataI=[];
@@ -112,15 +123,52 @@ const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.',
 function fmtDate(iso){const d=new Date(iso);return d.getDate()+' '+MOIS[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');}
 function tel(t){return t?('<a href="tel:'+t.replace(/\s/g,'')+'">'+t+'</a>'):'-';}
 
-/* ===== Auth ===== */
-async function init(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(session){enterApp();}
+/* ===== Service worker + notifications ===== */
+function urlB64ToUint8(b){const p='='.repeat((4-b.length%4)%4);const s=(b+p).replace(/-/g,'+').replace(/_/g,'/');const r=atob(s);return Uint8Array.from([...r].map(c=>c.charCodeAt(0)));}
+async function registerSW(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    // recharge auto quand une nouvelle version prend la main (sauf à la 1re install)
+    if(navigator.serviceWorker.controller){
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(refreshing)return; refreshing=true; location.reload(); });
+    }
+    const reg=await navigator.serviceWorker.register('sw.js');
+    reg.update();
+    setInterval(()=>reg.update(), 60*60*1000); // vérifie les mises à jour chaque heure
+  }catch(e){ console.error('SW',e); }
 }
+function updateNotifBar(){
+  const bar=document.getElementById('notifBar'), msg=document.getElementById('notifMsg'), btn=document.getElementById('notifBtn');
+  if(!('Notification' in window) || !('serviceWorker' in navigator)){
+    bar.style.display='flex'; btn.style.display='none';
+    msg.textContent="📲 Pour les notifications : touchez Partager → « Sur l'écran d'accueil », puis rouvrez careaffinity depuis l'icône installée.";
+    return;
+  }
+  if(Notification.permission==='granted'){ bar.style.display='none'; return; }
+  bar.style.display='flex'; btn.style.display='inline-block';
+  msg.textContent='🔔 Activez les notifications pour être prévenue des nouvelles demandes.';
+}
+async function enableNotifs(){
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ alert('Notifications non autorisées.'); return; }
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)});
+    const j=sub.toJSON();
+    const {data:{user}}=await sb.auth.getUser();
+    const {error}=await sb.from('push_subscriptions').upsert({endpoint:j.endpoint,subscription:j,user_email:user?user.email:null},{onConflict:'endpoint'});
+    if(error){console.error(error);alert('Erreur enregistrement : '+error.message);return;}
+    document.getElementById('notifBar').style.display='none';
+    alert('Notifications activées ✅');
+  }catch(e){ console.error(e); alert("Impossible d'activer : "+e.message); }
+}
+
+/* ===== Auth ===== */
+async function init(){ registerSW(); const {data:{session}}=await sb.auth.getSession(); if(session){enterApp();} }
 async function doLogin(){
-  const email=document.getElementById('email').value.trim();
-  const pwd=document.getElementById('pwd').value;
-  const btn=document.getElementById('loginBtn'); const err=document.getElementById('loginErr');
+  const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
+  const btn=document.getElementById('loginBtn'), err=document.getElementById('loginErr');
   err.textContent=''; btn.disabled=true; btn.textContent='Connexion…';
   const {error}=await sb.auth.signInWithPassword({email,password:pwd});
   btn.disabled=false; btn.textContent='Se connecter';
@@ -131,7 +179,7 @@ async function doLogout(){await sb.auth.signOut();location.reload();}
 function enterApp(){
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
-  reload();
+  updateNotifBar(); reload();
 }
 
 /* ===== Données ===== */
@@ -142,17 +190,15 @@ async function reload(){
     sb.from('intervenants').select('*').order('created_at',{ascending:false})
   ]);
   dataD=rd.data||[]; dataI=ri.data||[];
-  const nD=dataD.filter(x=>x.statut==='nouvelle').length;
-  const nI=dataI.filter(x=>x.statut==='a_verifier').length;
-  setCount('cntD',nD); setCount('cntI',nI);
+  setCount('cntD',dataD.filter(x=>x.statut==='nouvelle').length);
+  setCount('cntI',dataI.filter(x=>x.statut==='a_verifier').length);
   render();
 }
 function setCount(id,n){const e=document.getElementById(id);if(n>0){e.textContent=n;e.style.display='inline-block';}else{e.style.display='none';}}
 function show(t){tab=t;document.getElementById('tabD').classList.toggle('on',t==='demandes');document.getElementById('tabI').classList.toggle('on',t==='intervenants');render();}
 
 function render(){
-  const box=document.getElementById('list');
-  const info=document.getElementById('listInfo');
+  const box=document.getElementById('list'), info=document.getElementById('listInfo');
   if(tab==='demandes'){
     info.textContent=dataD.length+' demande(s)';
     if(!dataD.length){box.innerHTML='<div class="empty">Aucune demande pour l\'instant.</div>';return;}
@@ -162,16 +208,15 @@ function render(){
         : d.statut==='rappelee' ? '<span class="badge b-ok">Rappelée</span>'
         : d.statut==='en_cours' ? '<span class="badge b-wait">En cours</span>'
         : '<span class="badge b-new">Nouvelle</span>';
-      return `<div class="item ${isNew?'new':''}">
-        <div class="top"><div class="who">${d.prenom||'—'}</div><div class="date">${fmtDate(d.created_at)}</div></div>
-        <div class="badges"><span class="badge ${d.type==='enfants'?'b-enfants':'b-proche'}">${d.type==='enfants'?'Enfants':'Proche'}</span>${stBadge}</div>
-        <div class="meta">📍 ${d.commune||'-'} · 📞 ${tel(d.telephone)}</div>
-        <div class="actions">
-          <button class="act ${d.statut==='rappelee'?'on':''}" onclick="setD('${d.id}','rappelee')">Rappelée</button>
-          <button class="act ${d.statut==='en_cours'?'on':''}" onclick="setD('${d.id}','en_cours')">En cours</button>
-          <button class="act ${d.statut==='traitee'?'on':''}" onclick="setD('${d.id}','traitee')">Traitée</button>
-        </div>
-      </div>`;
+      return '<div class="item '+(isNew?'new':'')+'">'
+        +'<div class="top"><div class="who">'+(d.prenom||'—')+'</div><div class="date">'+fmtDate(d.created_at)+'</div></div>'
+        +'<div class="badges"><span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+stBadge+'</div>'
+        +'<div class="meta">📍 '+(d.commune||'-')+' · 📞 '+tel(d.telephone)+'</div>'
+        +'<div class="actions">'
+        +'<button class="act '+(d.statut==='rappelee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'rappelee\')">Rappelée</button>'
+        +'<button class="act '+(d.statut==='en_cours'?'on':'')+'" onclick="setD(\''+d.id+'\',\'en_cours\')">En cours</button>'
+        +'<button class="act '+(d.statut==='traitee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'traitee\')">Traitée</button>'
+        +'</div></div>';
     }).join('');
   } else {
     info.textContent=dataI.length+' intervenant(s)';
@@ -179,17 +224,14 @@ function render(){
     box.innerHTML=dataI.map(i=>{
       const isNew=i.statut==='a_verifier';
       const stBadge=i.statut==='valide'?'<span class="badge b-ok">Validé</span>':i.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">À vérifier</span>';
-      return `<div class="item ${isNew?'new':''}">
-        <div class="top"><div class="who">${i.nom||'—'}</div><div class="date">${fmtDate(i.created_at)}</div></div>
-        <div class="badges">${stBadge}</div>
-        <div class="meta">📞 ${tel(i.telephone)} · 📍 ${i.zone||'-'}<br>
-          🧰 ${(i.services||[]).join(', ')||'-'}${i.specialites?'<br>⭐ '+i.specialites:''}
-          ${i.experience?'<br>⏳ '+i.experience+' ans':''}${i.disponibilites?'<br>🕑 '+i.disponibilites:''}</div>
-        <div class="actions">
-          <button class="act green ${i.statut==='valide'?'on':''}" onclick="setI('${i.id}','valide')">Valider</button>
-          <button class="act red ${i.statut==='refuse'?'on':''}" onclick="setI('${i.id}','refuse')">Refuser</button>
-        </div>
-      </div>`;
+      return '<div class="item '+(isNew?'new':'')+'">'
+        +'<div class="top"><div class="who">'+(i.nom||'—')+'</div><div class="date">'+fmtDate(i.created_at)+'</div></div>'
+        +'<div class="badges">'+stBadge+'</div>'
+        +'<div class="meta">📞 '+tel(i.telephone)+' · 📍 '+(i.zone||'-')+'<br>🧰 '+((i.services||[]).join(', ')||'-')+(i.specialites?'<br>⭐ '+i.specialites:'')+(i.experience?'<br>⏳ '+i.experience+' ans':'')+(i.disponibilites?'<br>🕑 '+i.disponibilites:'')+'</div>'
+        +'<div class="actions">'
+        +'<button class="act green '+(i.statut==='valide'?'on':'')+'" onclick="setI(\''+i.id+'\',\'valide\')">Valider</button>'
+        +'<button class="act red '+(i.statut==='refuse'?'on':'')+'" onclick="setI(\''+i.id+'\',\'refuse\')">Refuser</button>'
+        +'</div></div>';
     }).join('');
   }
 }
