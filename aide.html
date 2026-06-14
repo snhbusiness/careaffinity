@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Comment ça marche · careaffinity</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF5F0; --card:#fff; --line:#EADBD0;
+    --coral:#D97A5E; --coral-deep:#C25A45; --coral-tint:#F7E2D8;
+    --forest:#21433B; --forest-soft:#2E5A4F;
+    --ink:#2B2420; --muted:#6E635C; --ok:#2E7D5B; --ok-tint:#DCEFE5;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Mulish',system-ui,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55}
+  .wrap{max-width:680px;margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-family:'Fraunces',serif;line-height:1.2}
+  .brand{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--forest)}
+  a{color:var(--coral-deep)}
+
+  .topbar{background:var(--forest);color:#fff;padding:13px 0}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between}
+  .topbar .brand{color:#fff;font-size:1.25rem}
+  .topbar a{color:#fff;text-decoration:none;font-weight:700;font-size:.85rem;background:rgba(255,255,255,.14);padding:8px 13px;border-radius:9px}
+
+  .hero{text-align:center;padding:34px 0 8px}
+  .hero h1{font-size:1.9rem;color:var(--forest);margin-bottom:10px}
+  .hero p{color:var(--muted);max-width:520px;margin:0 auto;font-size:1.05rem}
+
+  .tabs{display:flex;gap:8px;margin:24px 0 18px}
+  .tab{flex:1;padding:14px 10px;border:1.5px solid var(--line);background:#fff;border-radius:13px;font-family:inherit;font-weight:700;color:var(--muted);cursor:pointer;font-size:.98rem;text-align:center}
+  .tab.on{border-color:var(--coral);background:var(--coral-tint);color:var(--coral-deep)}
+
+  .panel{display:none}
+  .panel.on{display:block}
+  .panel h2{font-size:1.4rem;color:var(--forest);margin-bottom:6px}
+  .panel .lead{color:var(--muted);margin-bottom:22px}
+
+  .step{display:flex;gap:14px;margin-bottom:16px}
+  .step .num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--forest);color:#fff;font-family:'Fraunces',serif;font-weight:600;display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .step .txt h3{font-size:1.05rem;margin-bottom:3px}
+  .step .txt p{color:var(--muted);font-size:.96rem}
+
+  .note{background:#fff;border:1px solid var(--line);border-left:4px solid var(--coral);border-radius:12px;padding:15px 17px;margin:22px 0}
+  .note b{color:var(--forest)}
+  .plus{background:var(--forest);color:#fff;border-radius:13px;padding:16px 18px;margin:22px 0}
+  .plus h4{font-family:'Fraunces',serif;font-size:1.05rem;margin-bottom:6px;color:#fff;display:flex;align-items:center;gap:7px}
+  .plus p{font-size:.94rem;opacity:.92;line-height:1.5}
+  .plus a{color:#fff;font-weight:700}
+  .pill{display:inline-block;background:var(--ok-tint);color:var(--ok);font-weight:800;font-size:.8rem;padding:4px 11px;border-radius:999px;margin:2px 4px 2px 0}
+
+  .cta{text-align:center;margin:30px 0 10px}
+  .cta a{display:inline-block;background:var(--coral);color:#fff;text-decoration:none;font-weight:800;padding:15px 26px;border-radius:13px;font-size:1.05rem}
+  .legal{font-size:.82rem;color:var(--muted);text-align:center;padding:24px 0 50px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">careaffinity</span>
+  <a href="index.html">← Accueil</a>
+</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>La paperasse, on s'en occupe avec vous</h1>
+    <p>Selon votre situation, le circuit n'est pas le même. Voici comment ça marche — et où on vous accompagne à chaque étape.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tabP" onclick="sw('proche')">J'aide un proche</button>
+    <button class="tab" id="tabE" onclick="sw('enfants')">Pour mes enfants</button>
+  </div>
+
+  <!-- ===== PROCHE / CESU ===== -->
+  <div class="panel on" id="panelP">
+    <h2>Aider un proche âgé ou en situation de handicap</h2>
+    <p class="lead">Vous employez l'intervenant directement, via le <b>CESU</b>. C'est simple, et souvent moins cher qu'une agence.</p>
+
+    <div class="step"><div class="num">1</div><div class="txt"><h3>On vous présente une personne attitrée</h3><p>Vérifiée, expérimentée, proche de chez vous — et dont le casier judiciaire (bulletin n° 3) a été contrôlé.</p></div></div>
+    <div class="step"><div class="num">2</div><div class="txt"><h3>Vous l'employez via le CESU</h3><p>Inscription en quelques minutes sur <a href="https://www.cesu.urssaf.fr" target="_blank" rel="noopener">cesu.urssaf.fr</a>. On vous guide pas à pas.</p></div></div>
+    <div class="step"><div class="num">3</div><div class="txt"><h3>Vous récupérez 50 % en crédit d'impôt</h3><p>Sur les sommes versées, au titre des services à la personne. Avec l'avance immédiate, vous ne payez que la moitié, tout de suite.</p></div></div>
+    <div class="step"><div class="num">4</div><div class="txt"><h3>Des aides selon la situation</h3><p>L'<b>APA</b> (à partir de 60 ans, via le département) ou la <b>PCH</b> (situation de handicap) peuvent prendre en charge une partie. On vous oriente.</p></div></div>
+    <div class="step"><div class="num">5</div><div class="txt"><h3>Chaque mois, une déclaration de 2 minutes</h3><p>Vous déclarez les heures sur votre espace CESU. On vous montre comment.</p></div></div>
+
+    <div class="plus">
+      <h4>💡 Pour ne gérer qu'une seule chose : activez CESU+</h4>
+      <p>Une fois activé (avec l'accord de l'intervenant), le CESU prélève le salaire sur votre compte et le verse directement à l'intervenant. Vous n'avez plus qu'à déclarer les heures chaque mois — plus aucun virement à faire. À activer une seule fois sur <a href="https://www.cesu.urssaf.fr" target="_blank" rel="noopener">cesu.urssaf.fr</a>.</p>
+    </div>
+
+    <div class="note">🤝 <b>Ce qu'on gère avec vous :</b> la mise en relation, l'aide à l'inscription CESU, et l'explication des aides et du crédit d'impôt.</div>
+  </div>
+
+  <!-- ===== ENFANTS / PAJEMPLOI ===== -->
+  <div class="panel" id="panelE">
+    <h2>Faire garder vos enfants à domicile</h2>
+    <p class="lead">Pour un jeune enfant, on passe par <b>Pajemploi</b> (pas le CESU) — c'est ce qui ouvre droit à l'aide de la CAF.</p>
+
+    <div class="step"><div class="num">1</div><div class="txt"><h3>On vous présente une garde attitrée</h3><p>Vérifiée, expérimentée, dont le casier judiciaire (bulletin n° 3) a été contrôlé.</p></div></div>
+    <div class="step"><div class="num">2</div><div class="txt"><h3>Vous déclarez l'emploi à Pajemploi</h3><p>Sur <a href="https://www.pajemploi.urssaf.fr" target="_blank" rel="noopener">pajemploi.urssaf.fr</a>. C'est le passage obligé pour la garde à domicile.</p></div></div>
+    <div class="step"><div class="num">3</div><div class="txt"><h3>La CAF verse le CMG</h3><p>Le Complément de libre choix du Mode de Garde, à demander sur <a href="https://www.caf.fr" target="_blank" rel="noopener">caf.fr</a> (rubrique PAJE). Il couvre une partie du salaire + 50 % des cotisations.</p></div></div>
+    <div class="step"><div class="num">4</div><div class="txt"><h3>Une aide renforcée depuis 2025</h3><p><span class="pill">Jusqu'à 0 € de reste à charge minimum</span><span class="pill">Jusqu'aux 12 ans (familles monoparentales)</span>Selon vos revenus.</p></div></div>
+    <div class="step"><div class="num">5</div><div class="txt"><h3>Crédit d'impôt de 50 %</h3><p>Sur le reste à charge, au titre des services à la personne.</p></div></div>
+    <div class="step"><div class="num">6</div><div class="txt"><h3>Chaque mois, une déclaration simple</h3><p>Heures + salaire déclarés à Pajemploi (entre le 25 et le 5). Le CMG est déduit automatiquement.</p></div></div>
+
+    <div class="plus">
+      <h4>💡 Pour ne gérer qu'une seule chose : activez Pajemploi+</h4>
+      <p>Une fois activé (avec l'accord de la garde d'enfants), Pajemploi prélève le salaire et le verse à votre place, et déduit le CMG automatiquement. Une seule démarche par mois : déclarer les heures. À activer une seule fois sur <a href="https://www.pajemploi.urssaf.fr" target="_blank" rel="noopener">pajemploi.urssaf.fr</a>.</p>
+    </div>
+
+    <div class="note">🤝 <b>Ce qu'on gère avec vous :</b> la mise en relation, l'aide à la création des comptes CAF + Pajemploi, et l'estimation de votre reste à charge.</div>
+  </div>
+
+  <div class="cta"><a href="index.html">Faire une demande gratuite →</a></div>
+
+  <p class="legal">careaffinity est un service de mise en relation gratuit. Les familles emploient l'intervenant directement. Nous ne sommes ni l'employeur, ni un conseiller fiscal : les montants exacts dépendent de votre situation et se valident sur les sites officiels (cesu.urssaf.fr, pajemploi.urssaf.fr, caf.fr).</p>
+</div>
+
+<script>
+function sw(t){
+  document.getElementById('tabP').classList.toggle('on',t==='proche');
+  document.getElementById('tabE').classList.toggle('on',t==='enfants');
+  document.getElementById('panelP').classList.toggle('on',t==='proche');
+  document.getElementById('panelE').classList.toggle('on',t==='enfants');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+// ouvre directement le bon onglet si on arrive avec #enfants
+if(location.hash==='#enfants') sw('enfants');
+</script>
+</body>
+</html>
