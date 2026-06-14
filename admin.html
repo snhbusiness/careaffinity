@@ -233,7 +233,8 @@ function render(){
         +'<button class="act '+(d.statut==='rappelee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'rappelee\')">Rappelée</button>'
         +'<button class="act '+(d.statut==='en_cours'?'on':'')+'" onclick="setD(\''+d.id+'\',\'en_cours\')">En cours</button>'
         +'<button class="act '+(d.statut==='traitee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'traitee\')">Traitée</button>'
-        +'</div></div>';
+        +'<button class="act" onclick="matchDemande(\''+d.id+'\')">✨ Proposer (IA)</button>'
+        +'</div><div id="match_'+d.id+'"></div></div>';
     }).join('');
   } else {
     info.textContent=dataI.length+' intervenant(s)';
@@ -256,6 +257,17 @@ function render(){
   }
 }
 async function setD(id,statut){await sb.from('demandes').update({statut}).eq('id',id);const x=dataD.find(d=>d.id===id);if(x)x.statut=statut;setCount('cntD',dataD.filter(d=>d.statut==='nouvelle').length);render();}
+async function matchDemande(id){
+  const box=document.getElementById('match_'+id); if(!box)return;
+  box.innerHTML='<div class="loading" style="padding:14px">✨ L\'IA analyse les profils…</div>';
+  try{
+    const {data,error}=await sb.functions.invoke('match',{body:{demande_id:id}});
+    if(error)throw error;
+    const ms=(data&&data.matches)||[];
+    if(!ms.length){box.innerHTML='<div class="meta" style="margin-top:8px">Aucun intervenant validé pertinent pour l\'instant.</div>';return;}
+    box.innerHTML='<div style="margin-top:10px;font-weight:800;font-size:.82rem;color:var(--forest)">✨ Intervenants proposés</div>'+ms.map(x=>'<div style="background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:7px"><b>'+(x.nom||'—')+'</b> <span class="badge b-ok">'+(x.score||0)+'%</span>'+(x.casier_ok?' <span class="badge b-cas-ok">🛡️</span>':'')+'<div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div><div style="font-size:.86rem;margin-top:3px">'+(x.raison||'')+'</div></div>').join('');
+  }catch(e){box.innerHTML='<div class="meta" style="margin-top:8px;color:var(--coral-deep)">Erreur matching : '+(e.message||e)+'</div>';}
+}
 async function setCasier(id,val){await sb.from('intervenants').update({casier_ok:val}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.casier_ok=val;render();}
 async function setI(id,statut){
   if(statut==='valide'){const x0=dataI.find(i=>i.id===id);if(x0&&!x0.casier_ok){alert('⚠️ Vérifiez d\'abord le casier judiciaire (bulletin n° 3) avant de valider cet intervenant.');return;}}
@@ -276,6 +288,7 @@ function renderMissions(box,info){
     +'<div class="two"><div><label>Prénom famille</label><input id="m_fprenom" placeholder="ex. Sophie"></div><div><label>Tél famille</label><input id="m_ftel" placeholder="06…"></div></div>'
     +'<label>Intervenant·e</label><input id="m_interv" placeholder="Nom de l\'intervenant·e">'
     +'<div class="two"><div><label>Régime</label><select id="m_regime"><option value="cesu">CESU (proche)</option><option value="pajemploi">Pajemploi (enfants)</option></select></div><div><label>Taux net €/h</label><input id="m_taux" type="number" inputmode="decimal" placeholder="ex. 14"></div></div>'
+    +'<label>Email du compte famille (optionnel)</label><input id="m_femail" type="email" placeholder="pour relier la mission à son espace">'
     +'<button class="add" style="width:100%;background:var(--forest);color:#fff;border:none;border-radius:10px;padding:12px;font-family:inherit;font-weight:800;cursor:pointer" onclick="createMission()">Créer la mission</button></div>';
 
   if(!dataM.length){html+='<div class="empty">Aucune mission pour l\'instant.</div>';}
@@ -286,9 +299,10 @@ function renderMissions(box,info){
       const link=ptLink(m.token);
       return '<div class="item">'
         +'<div class="top"><div class="who">'+(m.famille_prenom||'—')+' · '+(m.intervenant_nom||'—')+'</div></div>'
-        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+'</div>'
+        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+'</div>'
         +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
         +'<div class="mlink"><span>'+link+'</span><button onclick="copyLink(\''+link+'\')">Copier</button></div>'
+        +(m.famille_user_id?'':'<div class="mlink"><input id="fe_'+m.id+'" type="email" placeholder="email du compte famille" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkFam(\''+m.id+'\')">Lier</button></div>')
         +'<div class="actions"><button class="act green" onclick="validateMonthAdmin(\''+m.id+'\')">Valider le mois</button></div>'
         +'</div>';
     }).join('');
@@ -301,9 +315,18 @@ async function createMission(){
   const interv=document.getElementById('m_interv').value.trim();
   const regime=document.getElementById('m_regime').value;
   const taux=parseFloat(document.getElementById('m_taux').value)||null;
+  const femail=document.getElementById('m_femail').value.trim();
   if(!fprenom||!interv){alert('Renseignez au moins le prénom de la famille et le nom de l\'intervenant.');return;}
-  const {error}=await sb.from('missions').insert({famille_prenom:fprenom,famille_tel:ftel,intervenant_nom:interv,regime,taux_horaire:taux});
+  const {data:ins,error}=await sb.from('missions').insert({famille_prenom:fprenom,famille_tel:ftel,intervenant_nom:interv,regime,taux_horaire:taux}).select().single();
   if(error){alert('Erreur : '+error.message);return;}
+  if(femail&&ins){const {error:e2}=await sb.rpc('admin_link_family',{p_mission_id:ins.id,p_email:femail});if(e2)alert('Mission créée, mais lien famille impossible : '+e2.message);}
+  await reload(); show('missions');
+}
+async function linkFam(missionId){
+  const v=document.getElementById('fe_'+missionId).value.trim();
+  if(!v){alert('Entrez l\'email du compte famille.');return;}
+  const {error}=await sb.rpc('admin_link_family',{p_mission_id:missionId,p_email:v});
+  if(error){alert(error.message);return;}
   await reload(); show('missions');
 }
 function copyLink(url){navigator.clipboard.writeText(url).then(()=>alert('Lien copié ✅')).catch(()=>prompt('Copiez le lien :',url));}

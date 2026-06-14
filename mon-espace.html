@@ -80,6 +80,7 @@ const SUPABASE_URL='https://tiappxjyhysezrbssuiz.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+let myInterv=null;
 function setMsg(t,ok){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
 function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
 
@@ -170,23 +171,61 @@ async function renderFamille(){
       +'<a class="go" href="pointage.html?m='+m.token+'">Voir / valider les heures →</a></div>';
   }).join('');}
   h+='</div>';
+  if(demandes.length){ h+='<div class="section"><h2>✨ Intervenants proposés</h2><div id="famMatch"><div class="loading">Recherche en cours…</div></div></div>'; }
   document.getElementById('body').innerHTML=h;
+  if(demandes.length) loadFamMatch(demandes[0].id);
+}
+async function loadFamMatch(demandeId){
+  const box=document.getElementById('famMatch'); if(!box)return;
+  try{
+    const {data,error}=await sb.functions.invoke('match',{body:{demande_id:demandeId}});
+    if(error)throw error;
+    const ms=(data&&data.matches)||[];
+    if(!ms.length){box.innerHTML='<div class="empty">Nous cherchons la bonne personne pour vous. Chloé vous recontacte très vite.</div>';return;}
+    box.innerHTML=ms.map(x=>'<div class="item"><div class="who">'+(x.nom||'—')+' <span class="badge b-ok">'+(x.score||0)+'% adapté</span></div><div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div><div style="font-size:.9rem;margin-top:4px">'+(x.raison||'')+'</div></div>').join('')+'<div class="empty" style="margin-top:8px">Chloé vous met en relation avec la personne choisie — vous n\'avez rien à faire.</div>';
+  }catch(e){box.innerHTML='<div class="empty">Recherche en cours… Chloé vous recontacte très vite.</div>';}
 }
 
 async function renderIntervenant(){
-  const [rm,rp]=await Promise.all([
+  const {data:{user}}=await sb.auth.getUser();
+  try{ await sb.rpc('claim_intervenant'); }catch(e){}
+  const [ri,rm,rp]=await Promise.all([
+    sb.from('intervenants').select('*').eq('user_id',user.id).maybeSingle(),
     sb.from('missions').select('*').order('created_at',{ascending:false}),
     sb.from('pointages').select('*')
   ]);
-  const missions=rm.data||[], pts=rp.data||[];
-  let h='<div class="empty" style="text-align:left">Votre espace intervenant arrive très bientôt 🛠️<br>En attendant, vous pouvez saisir vos heures depuis le lien de pointage que Chloé vous envoie.</div>';
-  if(missions.length){
-    h+='<div class="section"><h2>Mes missions</h2>'+missions.map(m=>{
-      const tot=monthTotal(pts,m.id);
-      return '<div class="item"><div class="who">'+(m.famille_prenom||'—')+'</div><div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b></div><a class="go" href="pointage.html?m='+m.token+'">Pointer mes heures →</a></div>';
-    }).join('')+'</div>';
+  const prof=ri.data; myInterv=prof; const missions=rm.data||[], pts=rp.data||[];
+  if(!prof){
+    document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Aucune fiche intervenant n\'est associée à cet email.<br>Inscrivez-vous via le site (bouton « Rejoindre le réseau »), en utilisant <b>le même email</b> que ce compte.</div><a class="go" href="index.html" style="margin-top:12px">Aller au site →</a>';
+    return;
   }
+  const esc=s=>(s||'').replace(/"/g,'&quot;');
+  const stB=prof.statut==='valide'?'<span class="badge b-ok">Profil validé</span>':prof.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">En cours de vérification</span>';
+  const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à vérifier</span>';
+  let h='<div class="section"><h2>Mon profil</h2><div class="item">'
+    +'<div class="who" style="font-weight:700;font-size:1.05rem">'+(prof.nom||'—')+'</div>'
+    +'<div class="badges" style="margin-top:6px">'+stB+casB+'</div>'
+    +'<div style="margin-top:12px">'
+    +'<label>Communes où j\'interviens</label><input id="e_zone" value="'+esc(prof.zone)+'">'
+    +'<label>Spécialités</label><input id="e_spe" value="'+esc(prof.specialites)+'">'
+    +'<label>Années d\'expérience</label><input id="e_exp" type="number" value="'+(prof.experience!=null?prof.experience:'')+'">'
+    +'<label>Mes disponibilités</label><input id="e_dispo" value="'+esc(prof.disponibilites)+'">'
+    +'<button class="btn" style="margin-top:4px" onclick="saveInterv()">Enregistrer</button>'
+    +'<div class="msg" id="e_msg"></div>'
+    +'</div></div></div>';
+  h+='<div class="section"><h2>Mes missions</h2>';
+  if(!missions.length){h+='<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';}
+  else{h+=missions.map(m=>{const tot=monthTotal(pts,m.id);return '<div class="item"><div class="who">'+(m.famille_prenom||'—')+'</div><div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b></div><a class="go" href="pointage.html?m='+m.token+'">Pointer mes heures →</a></div>';}).join('');}
+  h+='</div>';
   document.getElementById('body').innerHTML=h;
+}
+async function saveInterv(){
+  if(!myInterv)return;
+  const upd={zone:document.getElementById('e_zone').value.trim(),specialites:document.getElementById('e_spe').value.trim(),experience:parseInt(document.getElementById('e_exp').value)||null,disponibilites:document.getElementById('e_dispo').value.trim()};
+  const {error}=await sb.from('intervenants').update(upd).eq('id',myInterv.id);
+  const m=document.getElementById('e_msg');
+  if(error){m.className='msg err';m.textContent=error.message;return;}
+  m.className='msg ok';m.textContent='Enregistré ✅';
 }
 
 // Détecte la connexion (y compris au retour du lien magique)
