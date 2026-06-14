@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pointage · careaffinity</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--cream:#FBF5F0;--card:#fff;--line:#EADBD0;--coral:#D97A5E;--coral-deep:#C25A45;--coral-tint:#F7E2D8;--forest:#21433B;--ink:#2B2420;--muted:#6E635C;--ok:#2E7D5B;--ok-tint:#DCEFE5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Mulish',system-ui,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:560px;margin:0 auto;padding:0 18px 60px}
+  h1,h2,h3{font-family:'Fraunces',serif}
+  .brand{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--forest)}
+  header{background:var(--forest);color:#fff;padding:13px 0}
+  header .wrap{padding-bottom:0;display:flex;align-items:center;justify-content:space-between}
+  header .brand{color:#fff;font-size:1.2rem}
+
+  .mission{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:18px 0}
+  .mission .row{display:flex;justify-content:space-between;gap:10px;font-size:.95rem;margin:3px 0}
+  .mission .row .k{color:var(--muted)} .mission .row .v{font-weight:700}
+  .regime{display:inline-block;font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--coral-tint);color:var(--coral-deep)}
+
+  .month{display:flex;align-items:center;gap:10px;margin:18px 0 10px}
+  .month input{font-family:inherit;font-size:1rem;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px;margin-bottom:14px}
+  .card h3{font-size:1.05rem;margin-bottom:12px}
+  label{display:block;font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;margin:0 0 5px 2px}
+  .ff{margin-bottom:11px}
+  input,textarea{width:100%;font-family:inherit;font-size:1rem;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+  input:focus,textarea:focus{outline:none;border-color:var(--coral)}
+  .two{display:flex;gap:10px}.two>div{flex:1}
+  .add{width:100%;background:var(--forest);color:#fff;font-family:inherit;font-weight:800;font-size:1rem;padding:13px;border:none;border-radius:11px;cursor:pointer}
+
+  .line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+  .line:first-child{border-top:none}
+  .line .d{font-weight:700}.line .h{color:var(--muted);font-size:.9rem}
+  .line .dur{font-weight:800;color:var(--forest)}
+  .line.val{opacity:.7}
+  .del{background:none;border:none;color:var(--coral-deep);font-size:1.3rem;cursor:pointer;line-height:1;padding:0 4px}
+  .tag{font-size:.68rem;font-weight:800;padding:2px 7px;border-radius:999px;background:var(--ok-tint);color:var(--ok);margin-left:6px}
+
+  .total{display:flex;justify-content:space-between;align-items:center;background:var(--forest);color:#fff;border-radius:14px;padding:15px 17px;margin:6px 0 14px}
+  .total .lbl{font-size:.9rem;opacity:.85}.total .big{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:600}
+
+  .recap{background:#fff;border:2px solid var(--ok);border-radius:15px;padding:16px;margin-top:8px}
+  .recap h3{color:var(--ok);margin-bottom:10px}
+  .recap .row{display:flex;justify-content:space-between;margin:5px 0;font-size:.96rem}
+  .recap .row .v{font-weight:800}
+  .recap .hint{font-size:.84rem;color:var(--muted);margin-top:10px}
+
+  .validate{width:100%;background:var(--coral);color:#fff;font-family:inherit;font-weight:800;font-size:1.05rem;padding:15px;border:none;border-radius:12px;cursor:pointer;margin-top:4px}
+  .muted{color:var(--muted);font-size:.9rem;text-align:center;padding:14px}
+  .err{text-align:center;padding:60px 20px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header><div class="wrap"><span class="brand">careaffinity</span><span style="font-size:.85rem;opacity:.85">Pointage</span></div></header>
+<div class="wrap" id="root"><div class="muted">Chargement…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://tiappxjyhysezrbssuiz.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+
+const token=new URLSearchParams(location.search).get('m');
+let mission=null, all=[], ym=new Date();
+const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const pad=n=>String(n).padStart(2,'0');
+function calcMin(d,f){if(!d||!f)return 0;const[a,b]=d.split(':').map(Number),[c,e]=f.split(':').map(Number);let m=(c*60+e)-(a*60+b);if(m<0)m+=1440;return m;}
+function fmtH(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?pad(m):'');}
+
+async function load(){
+  if(!token){document.getElementById('root').innerHTML='<div class="err">Lien invalide.</div>';return;}
+  const {data,error}=await sb.rpc('pt_mission',{p_token:token});
+  if(error||!data||!data.length){document.getElementById('root').innerHTML='<div class="err">Lien invalide ou mission clôturée.</div>';return;}
+  mission=data[0];
+  const {data:pts}=await sb.rpc('pt_list',{p_token:token});
+  all=pts||[];
+  render();
+}
+
+function monthItems(){const y=ym.getFullYear(),mo=ym.getMonth()+1;return all.filter(p=>{const d=new Date(p.date);return d.getFullYear()===y&&(d.getMonth()+1)===mo;});}
+
+function render(){
+  const items=monthItems();
+  const totalMin=items.reduce((s,p)=>s+p.minutes,0);
+  const hours=totalMin/60;
+  const montant=mission.taux_horaire?hours*Number(mission.taux_horaire):null;
+  const allValid=items.length>0 && items.every(p=>p.statut==='valide');
+  const regimeLabel=mission.regime==='pajemploi'?'Pajemploi':'CESU';
+
+  let html='';
+  html+='<div class="mission">'
+    +'<div class="row"><span class="k">Intervenant·e</span><span class="v">'+(mission.intervenant_nom||'—')+'</span></div>'
+    +'<div class="row"><span class="k">Famille</span><span class="v">'+(mission.famille_prenom||'—')+'</span></div>'
+    +'<div class="row"><span class="k">Déclaration</span><span class="regime">'+regimeLabel+'</span></div>'
+    +(mission.taux_horaire?'<div class="row"><span class="k">Taux net</span><span class="v">'+Number(mission.taux_horaire).toFixed(2)+' €/h</span></div>':'')
+    +'</div>';
+
+  html+='<div class="month"><label style="margin:0">Mois</label><input type="month" id="ymInput" value="'+ym.getFullYear()+'-'+pad(ym.getMonth()+1)+'" onchange="changeMonth(this.value)"></div>';
+
+  html+='<div class="total"><div><div class="lbl">'+MOIS[ym.getMonth()]+' '+ym.getFullYear()+'</div><div class="big">'+fmtH(totalMin)+'</div></div>'
+    +(montant!=null?'<div style="text-align:right"><div class="lbl">Montant net</div><div class="big">'+montant.toFixed(2)+' €</div></div>':'')+'</div>';
+
+  // liste
+  html+='<div class="card"><h3>Heures du mois</h3>';
+  if(!items.length){html+='<div class="muted">Aucune heure saisie ce mois-ci.</div>';}
+  else{
+    items.forEach(p=>{
+      const d=new Date(p.date);
+      html+='<div class="line '+(p.statut==='valide'?'val':'')+'">'
+        +'<div><span class="d">'+d.getDate()+' '+MOIS[d.getMonth()].slice(0,4)+'.</span> <span class="h">'+(p.debut||'')+(p.fin?'–'+p.fin:'')+'</span>'+(p.statut==='valide'?'<span class="tag">validé</span>':'')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px"><span class="dur">'+fmtH(p.minutes)+'</span>'
+        +(p.statut==='saisi'?'<button class="del" onclick="del(\''+p.id+'\')">×</button>':'')+'</div></div>';
+    });
+  }
+  html+='</div>';
+
+  // ajout
+  if(!allValid){
+    html+='<div class="card"><h3>Ajouter des heures</h3>'
+      +'<div class="ff"><label>Date</label><input type="date" id="a_date" value="'+new Date().toISOString().slice(0,10)+'"></div>'
+      +'<div class="two"><div class="ff"><label>Début</label><input type="time" id="a_debut"></div><div class="ff"><label>Fin</label><input type="time" id="a_fin"></div></div>'
+      +'<div class="ff"><label>Note (optionnel)</label><input id="a_note" placeholder="ex. courses + ménage"></div>'
+      +'<button class="add" onclick="add()">+ Ajouter</button></div>';
+  }
+
+  // validation + récap
+  if(items.length){
+    if(allValid){
+      html+='<div class="recap"><h3>✅ Heures validées — à déclarer</h3>'
+        +'<div class="row"><span>Période</span><span class="v">'+MOIS[ym.getMonth()]+' '+ym.getFullYear()+'</span></div>'
+        +'<div class="row"><span>Total d\'heures</span><span class="v">'+hours.toFixed(2).replace('.',',')+' h</span></div>'
+        +(montant!=null?'<div class="row"><span>Salaire net</span><span class="v">'+montant.toFixed(2)+' €</span></div>':'')
+        +'<div class="hint">À recopier dans votre espace '+regimeLabel+' ('+(mission.regime==='pajemploi'?'pajemploi.urssaf.fr':'cesu.urssaf.fr')+') pour la déclaration du mois.</div></div>';
+    } else {
+      html+='<button class="validate" onclick="validate()">✅ Je valide ces heures</button>'
+        +'<div class="muted">Une fois validé, le récapitulatif à déclarer s\'affiche.</div>';
+    }
+  }
+
+  document.getElementById('root').innerHTML=html;
+}
+
+window.changeMonth=v=>{const[y,m]=v.split('-').map(Number);ym=new Date(y,m-1,1);render();};
+window.add=async()=>{
+  const date=document.getElementById('a_date').value, deb=document.getElementById('a_debut').value, fin=document.getElementById('a_fin').value, note=document.getElementById('a_note').value.trim();
+  if(!date||!deb||!fin){alert('Renseignez la date, le début et la fin.');return;}
+  const min=calcMin(deb,fin);
+  if(min<=0){alert('La fin doit être après le début.');return;}
+  const {error}=await sb.rpc('pt_add',{p_token:token,p_date:date,p_debut:deb,p_fin:fin,p_minutes:min,p_note:note,p_par:'intervenant'});
+  if(error){alert('Erreur : '+error.message);return;}
+  const {data:pts}=await sb.rpc('pt_list',{p_token:token});all=pts||[];render();
+};
+window.del=async(id)=>{
+  if(!confirm('Supprimer cette ligne ?'))return;
+  const {error}=await sb.rpc('pt_delete',{p_token:token,p_id:id});
+  if(error){alert('Erreur : '+error.message);return;}
+  const {data:pts}=await sb.rpc('pt_list',{p_token:token});all=pts||[];render();
+};
+window.validate=async()=>{
+  if(!confirm('Valider toutes les heures de '+MOIS[ym.getMonth()]+' ? Elles ne pourront plus être modifiées.'))return;
+  const {error}=await sb.rpc('pt_validate',{p_token:token,p_year:ym.getFullYear(),p_month:ym.getMonth()+1});
+  if(error){alert('Erreur : '+error.message);return;}
+  const {data:pts}=await sb.rpc('pt_list',{p_token:token});all=pts||[];render();
+};
+load();
+</script>
+</body>
+</html>

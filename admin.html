@@ -74,6 +74,13 @@
   .empty{text-align:center;color:var(--muted);padding:40px 16px}
   .loading{text-align:center;color:var(--muted);padding:30px}
   main{padding-bottom:50px}
+  .mform{background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:14px}
+  .mform h3{font-family:'Fraunces',serif;font-size:1.05rem;margin-bottom:10px}
+  .mform label{display:block;font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:0 0 4px 2px}
+  .mform input,.mform select{width:100%;font-family:inherit;font-size:.98rem;padding:10px 11px;border:1.5px solid var(--line);border-radius:10px;background:#fff;margin-bottom:9px}
+  .mform .two{display:flex;gap:9px}.mform .two>div{flex:1}
+  .mlink{display:flex;gap:8px;align-items:center;background:var(--cream);border:1px dashed var(--line);border-radius:9px;padding:8px 10px;margin-top:8px;font-size:.8rem;word-break:break-all}
+  .mlink button{flex:none;background:var(--forest);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
 </style>
 </head>
 <body>
@@ -105,6 +112,7 @@
     <div class="tabs">
       <button class="tab on" id="tabD" onclick="show('demandes')">Demandes<span class="count" id="cntD" style="display:none"></span></button>
       <button class="tab" id="tabI" onclick="show('intervenants')">Intervenants<span class="count" id="cntI" style="display:none"></span></button>
+      <button class="tab" id="tabM" onclick="show('missions')">Missions</button>
     </div>
     <div class="toolbar">
       <span class="n" id="listInfo"></span>
@@ -121,7 +129,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const VAPID_PUBLIC  = 'BIQAac2L6D1FxK4jwN03m8w94A9n6_HZTMoTk3SGCAeYQK3FpVeWT70yOIa-Y01rQ5lEh2dck3-asnIK6cjMsgI';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-let tab='demandes', dataD=[], dataI=[];
+let tab='demandes', dataD=[], dataI=[], dataM=[], dataP=[];
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 function fmtDate(iso){const d=new Date(iso);return d.getDate()+' '+MOIS[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');}
 function tel(t){return t?('<a href="tel:'+t.replace(/\s/g,'')+'">'+t+'</a>'):'-';}
@@ -188,21 +196,24 @@ function enterApp(){
 /* ===== Données ===== */
 async function reload(){
   document.getElementById('list').innerHTML='<div class="loading">Chargement…</div>';
-  const [rd,ri]=await Promise.all([
+  const [rd,ri,rm,rp]=await Promise.all([
     sb.from('demandes').select('*').order('created_at',{ascending:false}),
-    sb.from('intervenants').select('*').order('created_at',{ascending:false})
+    sb.from('intervenants').select('*').order('created_at',{ascending:false}),
+    sb.from('missions').select('*').order('created_at',{ascending:false}),
+    sb.from('pointages').select('*')
   ]);
-  dataD=rd.data||[]; dataI=ri.data||[];
+  dataD=rd.data||[]; dataI=ri.data||[]; dataM=rm.data||[]; dataP=rp.data||[];
   dataD.sort((a,b)=>((b.urgent&&b.statut==='nouvelle')?1:0)-((a.urgent&&a.statut==='nouvelle')?1:0));
   setCount('cntD',dataD.filter(x=>x.statut==='nouvelle').length);
   setCount('cntI',dataI.filter(x=>x.statut==='a_verifier').length);
   render();
 }
 function setCount(id,n){const e=document.getElementById(id);if(n>0){e.textContent=n;e.style.display='inline-block';}else{e.style.display='none';}}
-function show(t){tab=t;document.getElementById('tabD').classList.toggle('on',t==='demandes');document.getElementById('tabI').classList.toggle('on',t==='intervenants');render();}
+function show(t){tab=t;document.getElementById('tabD').classList.toggle('on',t==='demandes');document.getElementById('tabI').classList.toggle('on',t==='intervenants');document.getElementById('tabM').classList.toggle('on',t==='missions');render();}
 
 function render(){
   const box=document.getElementById('list'), info=document.getElementById('listInfo');
+  if(tab==='missions'){renderMissions(box,info);return;}
   if(tab==='demandes'){
     info.textContent=dataD.length+' demande(s)';
     if(!dataD.length){box.innerHTML='<div class="empty">Aucune demande pour l\'instant.</div>';return;}
@@ -249,6 +260,61 @@ async function setCasier(id,val){await sb.from('intervenants').update({casier_ok
 async function setI(id,statut){
   if(statut==='valide'){const x0=dataI.find(i=>i.id===id);if(x0&&!x0.casier_ok){alert('⚠️ Vérifiez d\'abord le casier judiciaire (bulletin n° 3) avant de valider cet intervenant.');return;}}
   await sb.from('intervenants').update({statut}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.statut=statut;setCount('cntI',dataI.filter(i=>i.statut==='a_verifier').length);render();
+}
+
+/* ===== Missions / pointage ===== */
+function monthTotalMin(missionId){
+  const now=new Date(), y=now.getFullYear(), mo=now.getMonth()+1;
+  return dataP.filter(p=>p.mission_id===missionId&&(()=>{const d=new Date(p.date);return d.getFullYear()===y&&(d.getMonth()+1)===mo;})()).reduce((s,p)=>s+p.minutes,0);
+}
+function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
+function ptLink(token){return new URL('pointage.html?m='+token, location.href).href;}
+
+function renderMissions(box,info){
+  info.textContent=dataM.length+' mission(s)';
+  let html='<div class="mform"><h3>Créer une mission</h3>'
+    +'<div class="two"><div><label>Prénom famille</label><input id="m_fprenom" placeholder="ex. Sophie"></div><div><label>Tél famille</label><input id="m_ftel" placeholder="06…"></div></div>'
+    +'<label>Intervenant·e</label><input id="m_interv" placeholder="Nom de l\'intervenant·e">'
+    +'<div class="two"><div><label>Régime</label><select id="m_regime"><option value="cesu">CESU (proche)</option><option value="pajemploi">Pajemploi (enfants)</option></select></div><div><label>Taux net €/h</label><input id="m_taux" type="number" inputmode="decimal" placeholder="ex. 14"></div></div>'
+    +'<button class="add" style="width:100%;background:var(--forest);color:#fff;border:none;border-radius:10px;padding:12px;font-family:inherit;font-weight:800;cursor:pointer" onclick="createMission()">Créer la mission</button></div>';
+
+  if(!dataM.length){html+='<div class="empty">Aucune mission pour l\'instant.</div>';}
+  else{
+    html+=dataM.map(m=>{
+      const tot=monthTotalMin(m.id);
+      const montant=m.taux_horaire?(tot/60*Number(m.taux_horaire)).toFixed(2)+' €':'';
+      const link=ptLink(m.token);
+      return '<div class="item">'
+        +'<div class="top"><div class="who">'+(m.famille_prenom||'—')+' · '+(m.intervenant_nom||'—')+'</div></div>'
+        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+'</div>'
+        +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
+        +'<div class="mlink"><span>'+link+'</span><button onclick="copyLink(\''+link+'\')">Copier</button></div>'
+        +'<div class="actions"><button class="act green" onclick="validateMonthAdmin(\''+m.id+'\')">Valider le mois</button></div>'
+        +'</div>';
+    }).join('');
+  }
+  box.innerHTML=html;
+}
+async function createMission(){
+  const fprenom=document.getElementById('m_fprenom').value.trim();
+  const ftel=document.getElementById('m_ftel').value.trim();
+  const interv=document.getElementById('m_interv').value.trim();
+  const regime=document.getElementById('m_regime').value;
+  const taux=parseFloat(document.getElementById('m_taux').value)||null;
+  if(!fprenom||!interv){alert('Renseignez au moins le prénom de la famille et le nom de l\'intervenant.');return;}
+  const {error}=await sb.from('missions').insert({famille_prenom:fprenom,famille_tel:ftel,intervenant_nom:interv,regime,taux_horaire:taux});
+  if(error){alert('Erreur : '+error.message);return;}
+  await reload(); show('missions');
+}
+function copyLink(url){navigator.clipboard.writeText(url).then(()=>alert('Lien copié ✅')).catch(()=>prompt('Copiez le lien :',url));}
+async function validateMonthAdmin(missionId){
+  const now=new Date();
+  if(!confirm('Valider toutes les heures saisies ce mois-ci pour cette mission ?'))return;
+  const {data:pts}=await sb.from('pointages').select('id,date,statut').eq('mission_id',missionId).eq('statut','saisi');
+  const ids=(pts||[]).filter(p=>{const d=new Date(p.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).map(p=>p.id);
+  if(!ids.length){alert('Aucune heure à valider ce mois-ci.');return;}
+  await sb.from('pointages').update({statut:'valide'}).in('id',ids);
+  await reload(); show('missions');
 }
 
 init();
