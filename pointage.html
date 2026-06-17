@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Pointage · careaffinity</title>
+<title>Pointage · Chloé Domicile</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{--cream:#FBF5F0;--card:#fff;--line:#EADBD0;--coral:#D97A5E;--coral-deep:#C25A45;--coral-tint:#F7E2D8;--forest:#21433B;--ink:#2B2420;--muted:#6E635C;--ok:#2E7D5B;--ok-tint:#DCEFE5}
@@ -59,7 +59,7 @@
 </style>
 </head>
 <body>
-<header><div class="wrap"><span class="brand">careaffinity</span><span style="font-size:.85rem;opacity:.85">Pointage</span></div></header>
+<header><div class="wrap"><span class="brand">Chloé Domicile</span><span style="font-size:.85rem;opacity:.85">Pointage</span></div></header>
 <div class="wrap" id="root"><div class="muted">Chargement…</div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -69,7 +69,7 @@ const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
 
 const token=new URLSearchParams(location.search).get('m');
-let mission=null, all=[], ym=new Date();
+let mission=null, all=[], decls=[], ym=new Date();
 const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const pad=n=>String(n).padStart(2,'0');
 function calcMin(d,f){if(!d||!f)return 0;const[a,b]=d.split(':').map(Number),[c,e]=f.split(':').map(Number);let m=(c*60+e)-(a*60+b);if(m<0)m+=1440;return m;}
@@ -82,6 +82,7 @@ async function load(){
   mission=data[0];
   const {data:pts}=await sb.rpc('pt_list',{p_token:token});
   all=pts||[];
+  try{ const {data:dd}=await sb.rpc('pt_declarations',{p_token:token}); decls=dd||[]; }catch(e){}
   render();
 }
 
@@ -93,6 +94,7 @@ function render(){
   const hours=totalMin/60;
   const montant=mission.taux_horaire?hours*Number(mission.taux_horaire):null;
   const allValid=items.length>0 && items.every(p=>p.statut==='valide');
+  const declared=decls.find(d=>d.annee===ym.getFullYear()&&d.mois===(ym.getMonth()+1));
   const regimeLabel=mission.regime==='pajemploi'?'Pajemploi':'CESU';
 
   let html='';
@@ -137,12 +139,21 @@ function render(){
       const hoursStr=hours.toFixed(2).replace('.',',');
       const netStr=montant!=null?montant.toFixed(2).replace('.',','):'';
       const urssafUrl=mission.regime==='pajemploi'?'https://www.pajemploi.urssaf.fr':'https://www.cesu.urssaf.fr';
-      html+='<div class="recap"><h3>✅ Heures validées — à déclarer</h3>'
-        +'<div class="row"><span>Période</span><span class="v">'+MOIS[ym.getMonth()]+' '+ym.getFullYear()+'</span></div>'
-        +'<div class="row"><span>Nombre d\'heures</span><span class="rv"><span class="v">'+hoursStr+' h</span><button class="cp" onclick="cp(this,\''+hoursStr+'\')">Copier</button></span></div>'
-        +(montant!=null?'<div class="row"><span>Salaire net</span><span class="rv"><span class="v">'+netStr+' €</span><button class="cp" onclick="cp(this,\''+netStr+'\')">Copier</button></span></div>':'')
-        +'<a class="openurssaf" href="'+urssafUrl+'" target="_blank" rel="noopener">Ouvrir '+regimeLabel+' pour déclarer →</a>'
-        +'<div class="hint">Connectez-vous, choisissez « Déclarer », et collez les 2 valeurs ci-dessus pour le mois.</div></div>';
+      if(declared){
+        const dd=new Date(declared.declared_at);
+        html+='<div class="recap"><h3>✅ Mois déclaré</h3>'
+          +'<div class="row"><span>Période</span><span class="v">'+MOIS[ym.getMonth()]+' '+ym.getFullYear()+'</span></div>'
+          +'<div class="row"><span>Déclaré le</span><span class="v">'+dd.getDate()+'/'+(dd.getMonth()+1)+'/'+dd.getFullYear()+'</span></div>'
+          +'<div class="hint">Tout est en ordre pour ce mois — rien d\'autre à faire.</div></div>';
+      } else {
+        html+='<div class="recap"><h3>✅ Heures validées — à déclarer</h3>'
+          +'<div class="row"><span>Période</span><span class="v">'+MOIS[ym.getMonth()]+' '+ym.getFullYear()+'</span></div>'
+          +'<div class="row"><span>Nombre d\'heures</span><span class="rv"><span class="v">'+hoursStr+' h</span><button class="cp" onclick="cp(this,\''+hoursStr+'\')">Copier</button></span></div>'
+          +(montant!=null?'<div class="row"><span>Salaire net</span><span class="rv"><span class="v">'+netStr+' €</span><button class="cp" onclick="cp(this,\''+netStr+'\')">Copier</button></span></div>':'')
+          +'<a class="openurssaf" href="'+urssafUrl+'" target="_blank" rel="noopener">Ouvrir '+regimeLabel+' pour déclarer →</a>'
+          +'<button class="validate" style="background:var(--forest);margin-top:10px" onclick="markDeclared('+hours+','+(montant!=null?montant:'null')+')">J\'ai déclaré ✅</button>'
+          +'<div class="hint">Collez les 2 valeurs dans '+regimeLabel+', puis touchez « J\'ai déclaré » pour clore le mois.</div></div>';
+      }
     } else {
       html+='<button class="validate" onclick="validate()">✅ Je valide ces heures</button>'
         +'<div class="muted">Une fois validé, le récapitulatif à déclarer s\'affiche.</div>';
@@ -174,6 +185,13 @@ window.validate=async()=>{
   const {error}=await sb.rpc('pt_validate',{p_token:token,p_year:ym.getFullYear(),p_month:ym.getMonth()+1});
   if(error){alert('Erreur : '+error.message);return;}
   const {data:pts}=await sb.rpc('pt_list',{p_token:token});all=pts||[];render();
+};
+window.markDeclared=async(hours,montant)=>{
+  if(!confirm('Confirmer que la déclaration de '+MOIS[ym.getMonth()]+' a été faite sur l\'URSSAF ?'))return;
+  const {error}=await sb.rpc('pt_declare',{p_token:token,p_year:ym.getFullYear(),p_month:ym.getMonth()+1,p_heures:hours,p_montant:montant});
+  if(error){alert('Erreur : '+error.message);return;}
+  try{ const {data:dd}=await sb.rpc('pt_declarations',{p_token:token}); decls=dd||[]; }catch(e){}
+  render();
 };
 load();
 </script>

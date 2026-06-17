@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>careaffinity · Admin</title>
+<title>Chloé Domicile · Admin</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#21433B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="careaffinity">
+<meta name="apple-mobile-web-app-title" content="Chloé Domicile">
 <link rel="apple-touch-icon" href="icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -87,7 +87,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <div id="login">
-  <div class="brand">careaffinity</div>
+  <div class="brand">Chloé Domicile</div>
   <div class="sub">Espace administrateur</div>
   <div class="box">
     <label>Email</label>
@@ -101,7 +101,7 @@
 
 <div id="app">
   <header><div class="wrap">
-    <span class="brand">careaffinity · admin</span>
+    <span class="brand">Chloé Domicile · admin</span>
     <button class="out" onclick="doLogout()">Déconnexion</button>
   </div></header>
   <div class="wrap">
@@ -129,7 +129,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const VAPID_PUBLIC  = 'BIQAac2L6D1FxK4jwN03m8w94A9n6_HZTMoTk3SGCAeYQK3FpVeWT70yOIa-Y01rQ5lEh2dck3-asnIK6cjMsgI';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-let tab='demandes', dataD=[], dataI=[], dataM=[], dataP=[];
+let tab='demandes', dataD=[], dataI=[], dataM=[], dataP=[], dataInt=[];
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 function fmtDate(iso){const d=new Date(iso);return d.getDate()+' '+MOIS[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');}
 function tel(t){return t?('<a href="tel:'+t.replace(/\s/g,'')+'">'+t+'</a>'):'-';}
@@ -153,7 +153,7 @@ function updateNotifBar(){
   const bar=document.getElementById('notifBar'), msg=document.getElementById('notifMsg'), btn=document.getElementById('notifBtn');
   if(!('Notification' in window) || !('serviceWorker' in navigator)){
     bar.style.display='flex'; btn.style.display='none';
-    msg.textContent="📲 Pour les notifications : touchez Partager → « Sur l'écran d'accueil », puis rouvrez careaffinity depuis l'icône installée.";
+    msg.textContent="📲 Pour les notifications : touchez Partager → « Sur l'écran d'accueil », puis rouvrez Chloé Domicile depuis l'icône installée.";
     return;
   }
   if(Notification.permission==='granted'){ bar.style.display='none'; return; }
@@ -196,13 +196,14 @@ function enterApp(){
 /* ===== Données ===== */
 async function reload(){
   document.getElementById('list').innerHTML='<div class="loading">Chargement…</div>';
-  const [rd,ri,rm,rp]=await Promise.all([
+  const [rd,ri,rm,rp,rint]=await Promise.all([
     sb.from('demandes').select('*').order('created_at',{ascending:false}),
     sb.from('intervenants').select('*').order('created_at',{ascending:false}),
     sb.from('missions').select('*').order('created_at',{ascending:false}),
-    sb.from('pointages').select('*')
+    sb.from('pointages').select('*'),
+    sb.from('interets').select('*')
   ]);
-  dataD=rd.data||[]; dataI=ri.data||[]; dataM=rm.data||[]; dataP=rp.data||[];
+  dataD=rd.data||[]; dataI=ri.data||[]; dataM=rm.data||[]; dataP=rp.data||[]; dataInt=rint.data||[];
   dataD.sort((a,b)=>((b.urgent&&b.statut==='nouvelle')?1:0)-((a.urgent&&a.statut==='nouvelle')?1:0));
   setCount('cntD',dataD.filter(x=>x.statut==='nouvelle').length);
   setCount('cntI',dataI.filter(x=>x.statut==='a_verifier').length);
@@ -229,6 +230,8 @@ function render(){
         +'<div class="top"><div class="who">'+(d.prenom||'—')+'</div><div class="date">'+fmtDate(d.created_at)+'</div></div>'
         +'<div class="badges">'+urgBadge+'<span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+stBadge+'</div>'
         +'<div class="meta">📍 '+(d.commune||'-')+' · 📞 '+tel(d.telephone)+'</div>'
+        +((d.quand||d.heures||d.specificite||d.budget)?'<div class="meta" style="margin-top:2px">'+[d.quand,d.heures,d.specificite,d.budget].filter(Boolean).join(' · ')+'</div>':'')
+        +(function(){const ints=dataInt.filter(x=>x.demande_id===d.id);if(!ints.length)return '';const noms=ints.map(x=>{const iv=dataI.find(z=>z.id===x.intervenant_id);return iv?iv.nom:'?';}).join(', ');return '<div class="meta" style="margin-top:2px;color:var(--coral-deep);font-weight:700">💛 Intéressée par : '+noms+'</div>';})()
         +'<div class="actions">'
         +'<button class="act '+(d.statut==='rappelee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'rappelee\')">Rappelée</button>'
         +'<button class="act '+(d.statut==='en_cours'?'on':'')+'" onclick="setD(\''+d.id+'\',\'en_cours\')">En cours</button>'
@@ -299,7 +302,7 @@ function renderMissions(box,info){
       const link=ptLink(m.token);
       return '<div class="item">'
         +'<div class="top"><div class="who">'+(m.famille_prenom||'—')+' · '+(m.intervenant_nom||'—')+'</div></div>'
-        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+'</div>'
+        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+(m.accept==='accepte'?'<span class="badge b-ok">✅ Intervenant a accepté</span>':m.accept==='refuse'?'<span class="badge b-urg">⚠️ Intervenant a refusé</span>':'')+'</div>'
         +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
         +'<div class="mlink"><span>'+link+'</span><button onclick="copyLink(\''+link+'\')">Copier</button></div>'
         +(m.famille_user_id?'':'<div class="mlink"><input id="fe_'+m.id+'" type="email" placeholder="email du compte famille" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkFam(\''+m.id+'\')">Lier</button></div>')

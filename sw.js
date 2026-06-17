@@ -1,14 +1,14 @@
-// careaffinity — service worker (notifications push + auto-update)
+// Chloé Domicile — service worker (notifications push + auto-update)
 // 🔁 Pour forcer une mise à jour de l'app installée : change ce numéro de version.
-const VERSION = '2026-06-14-6';
+const VERSION = '2026-06-14-8';
 
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', event => {
   let data = {};
-  try { data = event.data.json(); } catch (e) { data = { title: 'careaffinity', body: 'Nouvelle activité' }; }
-  const title = data.title || 'careaffinity';
+  try { data = event.data.json(); } catch (e) { data = { title: 'Chloé Domicile', body: 'Nouvelle activité' }; }
+  const title = data.title || 'Chloé Domicile';
   const options = {
     body: data.body || '',
     icon: 'icon-512.png',
