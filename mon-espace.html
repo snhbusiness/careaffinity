@@ -54,21 +54,22 @@
 
 <div id="login">
   <div class="brand">Chloé Domicile</div>
-  <div class="sub">Connexion</div>
+  <div class="sub" id="authSub">Connexion</div>
   <div class="box">
     <label>Votre email</label>
     <input id="email" type="email" autocomplete="email" placeholder="vous@exemple.fr">
     <button class="btn alt" id="magicBtn" onclick="magicLink()">📩 Recevoir un lien de connexion</button>
-    <div class="sep">ou avec un mot de passe</div>
+    <div class="sep" id="pwSep">ou avec un mot de passe</div>
     <input id="pwd" type="password" autocomplete="current-password" placeholder="Mot de passe">
-    <button class="btn" id="pwBtn" onclick="pwLogin()">Se connecter</button>
-    <div class="small">Première visite ? <button class="link" onclick="pwSignup()">Créer mon compte</button></div>
+    <button class="btn" id="pwBtn" onclick="pwSubmit()">Se connecter</button>
+    <div class="small" id="authToggle"></div>
     <div class="msg" id="msg"></div>
   </div>
+  <div class="small" style="margin-top:14px;text-align:center"><a href="index.html" style="color:var(--forest);text-decoration:none">← Retour à l'accueil</a></div>
 </div>
 
 <div id="app">
-  <header><div class="wrap"><span class="brand">Chloé Domicile</span><button class="out" onclick="logout()">Déconnexion</button></div></header>
+  <header><div class="wrap"><a href="index.html" style="text-decoration:none"><span class="brand">Chloé Domicile</span></a><button class="out" onclick="logout()">Déconnexion</button></div></header>
   <div class="wrap">
     <div class="hi" id="hi">Bonjour 👋</div>
     <div id="body"><div class="loading">Chargement…</div></div>
@@ -103,10 +104,26 @@ async function pwLogin(){
 async function pwSignup(){
   const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
   if(!email||!pwd){setMsg('Entrez un email et choisissez un mot de passe.');return;}
+  if(pwd.length<6){setMsg('Le mot de passe doit faire au moins 6 caractères.');return;}
   const {data,error}=await sb.auth.signUp({email,password:pwd,options:{emailRedirectTo:location.origin+location.pathname}});
   if(error){setMsg(error.message);return;}
+  if(data.user && data.user.identities && data.user.identities.length===0){ setMsg('Un compte existe déjà avec cet email. Connectez-vous ci-dessous.'); setAuthMode('login'); return; }
   if(data.session){enter();} else {setMsg('Compte créé ! Vérifiez vos emails pour confirmer, puis connectez-vous.',true);}
 }
+let authMode='login';
+function setAuthMode(m){
+  authMode=m;
+  document.getElementById('authSub').textContent   = m==='login'?'Connexion':'Créer mon compte';
+  document.getElementById('pwBtn').textContent      = m==='login'?'Se connecter':'Créer mon compte';
+  document.getElementById('pwd').setAttribute('autocomplete', m==='login'?'current-password':'new-password');
+  document.getElementById('pwSep').textContent      = m==='login'?'ou avec un mot de passe':'ou choisissez un mot de passe';
+  document.getElementById('authToggle').innerHTML   = m==='login'
+    ? 'Première visite&nbsp;? <button class="link" onclick="setAuthMode(\'signup\')">Créer mon compte</button>'
+    : 'Déjà inscrit·e&nbsp;? <button class="link" onclick="setAuthMode(\'login\')">Se connecter</button>';
+  document.getElementById('msg').textContent='';
+}
+function pwSubmit(){ return authMode==='login'?pwLogin():pwSignup(); }
+setAuthMode('login');
 async function logout(){await sb.auth.signOut();location.reload();}
 
 async function getProfile(uid){const {data}=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();return data;}
