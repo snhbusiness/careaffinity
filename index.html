@@ -381,9 +381,10 @@ function check(){const ok=document.getElementById('f_commune').value.trim()&&doc
 ['f_commune','f_prenom','f_tel'].forEach(i=>document.getElementById(i).addEventListener('input',check));
 async function submitForm(){
   const g=id=>document.getElementById(id).value.trim();
-  const rec={type:current,commune:g('f_commune'),prenom:g('f_prenom'),telephone:g('f_tel'),quand:g('f_quand'),heures:g('f_heures'),specificite:g('f_spe'),budget:g('f_budget'),urgent:formUrgent,source:'site'};
+  const newId=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(16).slice(2));
+  const rec={id:newId,type:current,commune:g('f_commune'),prenom:g('f_prenom'),telephone:g('f_tel'),quand:g('f_quand'),heures:g('f_heures'),specificite:g('f_spe'),budget:g('f_budget'),urgent:formUrgent,source:'site'};
   const btn=document.getElementById('f_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
-  if(sb){ const {data,error}=await sb.from('demandes').insert(rec).select('id').single(); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):"")+"\n\nSi le souci persiste, appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} if(data){const a=document.getElementById('espaceCta'); if(a) a.href='mon-espace.html?d='+data.id;} }
+  if(sb){ const {error}=await sb.from('demandes').insert(rec); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):"")+"\n\nSi le souci persiste, appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} const a=document.getElementById('espaceCta'); if(a) a.href='mon-espace.html?d='+newId; }
   // Happening : combien d'intervenants validés près de la commune ?
   let n=0;
   if(sb){ try{ const {data:c}=await sb.rpc('count_matchs',{p_commune:rec.commune,p_type:current}); n=c||0; }catch(e){} }
