@@ -142,7 +142,7 @@
 </style>
 </head>
 <body>
-<a href="mon-espace.html" class="cnx-fab">Connexion</a>
+<a href="mon-espace.html" class="cnx-fab" id="cnxFab">Connexion</a>
 
 <div id="chooser"><div class="wrap">
   <div class="brand">
@@ -343,7 +343,9 @@ const CONTENT = {
 };
 let current=null, formUrgent=false;
 function toggleUrgent(){ formUrgent=!formUrgent; document.getElementById('urgSw').classList.toggle('on',formUrgent); }
+function cnxFab(v){var f=document.getElementById('cnxFab'); if(f) f.style.display=v?'':'none';}
 function choose(key){
+  cnxFab(false);
   current=key; const c=CONTENT[key];
   document.getElementById('xtag').textContent=c.tag; document.getElementById('xtag').style.color=c.tagColor;
   document.getElementById('xh1').innerHTML=c.h1;
@@ -363,7 +365,7 @@ function choose(key){
   document.getElementById('experience').style.display='block';
   window.scrollTo(0,0);
 }
-function backToChooser(){document.getElementById('experience').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
+function backToChooser(){cnxFab(true);document.getElementById('experience').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
 function openForm(){const c=CONTENT[current];document.getElementById('mtitle').textContent=c.mtitle;document.getElementById('mctx').innerHTML=c.mctx;
   formUrgent=false; document.getElementById('urgSw').classList.remove('on');
   var tel='+33606787368', wa='33606787368';
@@ -381,7 +383,7 @@ async function submitForm(){
   const g=id=>document.getElementById(id).value.trim();
   const rec={type:current,commune:g('f_commune'),prenom:g('f_prenom'),telephone:g('f_tel'),quand:g('f_quand'),heures:g('f_heures'),specificite:g('f_spe'),budget:g('f_budget'),urgent:formUrgent,source:'site'};
   const btn=document.getElementById('f_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
-  if(sb){ const {data,error}=await sb.from('demandes').insert(rec).select('id').single(); if(error){alert("Une erreur est survenue. Réessayez, ou appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} if(data){const a=document.getElementById('espaceCta'); if(a) a.href='mon-espace.html?d='+data.id;} }
+  if(sb){ const {data,error}=await sb.from('demandes').insert(rec).select('id').single(); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):"")+"\n\nSi le souci persiste, appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} if(data){const a=document.getElementById('espaceCta'); if(a) a.href='mon-espace.html?d='+data.id;} }
   // Happening : combien d'intervenants validés près de la commune ?
   let n=0;
   if(sb){ try{ const {data:c}=await sb.rpc('count_matchs',{p_commune:rec.commune,p_type:current}); n=c||0; }catch(e){} }
@@ -398,8 +400,8 @@ async function submitForm(){
 }
 
 /* --- Espace intervenant --- */
-function showNetwork(){document.getElementById('chooser').style.display='none';document.getElementById('experience').style.display='none';document.getElementById('netform').style.display='block';document.getElementById('netDone').classList.remove('show');document.getElementById('network').style.display='block';window.scrollTo(0,0);}
-function closeNetwork(){document.getElementById('network').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
+function showNetwork(){cnxFab(false);document.getElementById('chooser').style.display='none';document.getElementById('experience').style.display='none';document.getElementById('netform').style.display='block';document.getElementById('netDone').classList.remove('show');document.getElementById('network').style.display='block';window.scrollTo(0,0);}
+function closeNetwork(){cnxFab(true);document.getElementById('network').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
 function tog(el){el.classList.toggle('on');el.querySelector('.box').textContent=el.classList.contains('on')?'✓':'';checkNet();}
 function checkNet(){const ok=document.getElementById('n_nom').value.trim()&&document.getElementById('n_tel').value.trim()&&document.getElementById('n_email').value.trim()&&document.getElementById('n_zone').value.trim()&&document.getElementById('n_casier').checked;document.getElementById('n_submit').disabled=!ok;}
 ['n_nom','n_tel','n_zone'].forEach(i=>document.getElementById(i).addEventListener('input',checkNet));
@@ -407,7 +409,7 @@ async function submitNetwork(){
   const services=[...document.querySelectorAll('#n_services .check.on')].map(e=>e.textContent.replace('✓','').trim());
   const rec={nom:document.getElementById('n_nom').value.trim(),telephone:document.getElementById('n_tel').value.trim(),email:document.getElementById('n_email').value.trim(),zone:document.getElementById('n_zone').value.trim(),services:services,specialites:document.getElementById('n_spe').value.trim(),experience:parseInt(document.getElementById('n_exp').value)||null,disponibilites:document.getElementById('n_dispo').value.trim(),casier_consent:document.getElementById('n_casier').checked};
   const btn=document.getElementById('n_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
-  if(sb){ const {error}=await sb.from('intervenants').insert(rec); if(error){alert("Une erreur est survenue. Réessayez.");console.error(error);btn.disabled=false;btn.textContent=old;return;} }
+  if(sb){ const {error}=await sb.from('intervenants').insert(rec); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):""));console.error(error);btn.disabled=false;btn.textContent=old;return;} }
   document.getElementById('netform').style.display='none';
   document.getElementById('netDone').classList.add('show');
   window.scrollTo(0,0);
