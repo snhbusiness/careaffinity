@@ -99,7 +99,12 @@ async function pwLogin(){
   const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
   if(!email||!pwd){setMsg('Email et mot de passe requis.');return;}
   const {error}=await sb.auth.signInWithPassword({email,password:pwd});
-  if(error){setMsg('Identifiants incorrects, ou compte inexistant.');return;}
+  if(error){
+    setAuthMode('signup');
+    document.getElementById('email').value=email; document.getElementById('pwd').value=pwd;
+    setMsg('Pas encore de compte avec cet email ? Choisissez un mot de passe (6 caractères min.) puis touchez « Créer mon compte ». (Si vous avez déjà un compte, vérifiez votre mot de passe.)');
+    return;
+  }
   enter();
 }
 async function pwSignup(){
