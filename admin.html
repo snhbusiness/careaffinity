@@ -87,6 +87,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <div id="login">
+  <img src="icon-512.png" alt="Chloé Domicile" style="width:84px;height:84px;display:block;margin:0 auto 8px;border-radius:20px">
   <div class="brand">Chloé Domicile</div>
   <div class="sub">Espace administrateur</div>
   <div class="box">
@@ -97,6 +98,7 @@
     <button class="btn" id="loginBtn" onclick="doLogin()">Se connecter</button>
     <div class="err" id="loginErr"></div>
   </div>
+  <div style="text-align:center;margin-top:14px"><a href="index.html" style="color:var(--forest);text-decoration:none;font-weight:600">← Retour à l'accueil</a></div>
 </div>
 
 <div id="app">
@@ -260,6 +262,14 @@ function render(){
   }
 }
 async function setD(id,statut){await sb.from('demandes').update({statut}).eq('id',id);const x=dataD.find(d=>d.id===id);if(x)x.statut=statut;setCount('cntD',dataD.filter(d=>d.statut==='nouvelle').length);render();}
+async function createMissionFromMatch(demandeId,intId){
+  const taux=prompt('Taux net €/h pour cette mission (vous pourrez le modifier ensuite) :','14');
+  if(taux===null)return;
+  const {error}=await sb.rpc('create_mission_from_match',{p_demande:demandeId,p_intervenant:intId,p_taux:taux?parseFloat(taux.replace(',','.')):null});
+  if(error){alert('Erreur : '+error.message);return;}
+  alert('Mission créée et reliée automatiquement ✅\nLa famille et l\'intervenant la verront dans leur espace.');
+  await reload(); show('missions');
+}
 async function matchDemande(id){
   const box=document.getElementById('match_'+id); if(!box)return;
   box.innerHTML='<div class="loading" style="padding:14px">✨ L\'IA analyse les profils…</div>';
@@ -268,7 +278,7 @@ async function matchDemande(id){
     if(error)throw error;
     const ms=(data&&data.matches)||[];
     if(!ms.length){box.innerHTML='<div class="meta" style="margin-top:8px">Aucun intervenant validé pertinent pour l\'instant.</div>';return;}
-    box.innerHTML='<div style="margin-top:10px;font-weight:800;font-size:.82rem;color:var(--forest)">✨ Intervenants proposés</div>'+ms.map(x=>'<div style="background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:7px"><b>'+(x.nom||'—')+'</b> <span class="badge b-ok">'+(x.score||0)+'%</span>'+(x.casier_ok?' <span class="badge b-cas-ok">🛡️</span>':'')+'<div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div><div style="font-size:.86rem;margin-top:3px">'+(x.raison||'')+'</div></div>').join('');
+    box.innerHTML='<div style="margin-top:10px;font-weight:800;font-size:.82rem;color:var(--forest)">✨ Intervenants proposés</div>'+ms.map(x=>'<div style="background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:7px"><b>'+(x.nom||'—')+'</b> <span class="badge b-ok">'+(x.score||0)+'%</span>'+(x.casier_ok?' <span class="badge b-cas-ok">🛡️</span>':'')+'<div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div><div style="font-size:.86rem;margin-top:3px">'+(x.raison||'')+'</div>'+(x.id?'<button class="act green" style="margin-top:8px;width:100%" onclick="createMissionFromMatch(\''+id+'\',\''+x.id+'\')">✅ Créer la mission avec '+(x.nom||'cette personne').replace(/\x27/g,"")+'</button>':'')+'</div>').join('');
   }catch(e){box.innerHTML='<div class="meta" style="margin-top:8px;color:var(--coral-deep)">Erreur matching : '+(e.message||e)+'</div>';}
 }
 async function setCasier(id,val){await sb.from('intervenants').update({casier_ok:val}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.casier_ok=val;render();}
@@ -292,6 +302,7 @@ function renderMissions(box,info){
     +'<label>Intervenant·e</label><input id="m_interv" placeholder="Nom de l\'intervenant·e">'
     +'<div class="two"><div><label>Régime</label><select id="m_regime"><option value="cesu">CESU (proche)</option><option value="pajemploi">Pajemploi (enfants)</option></select></div><div><label>Taux net €/h</label><input id="m_taux" type="number" inputmode="decimal" placeholder="ex. 14"></div></div>'
     +'<label>Email du compte famille (optionnel)</label><input id="m_femail" type="email" placeholder="pour relier la mission à son espace">'
+    +'<label>Email du compte intervenant (optionnel)</label><input id="m_iemail" type="email" placeholder="pour relier la mission à son espace">'
     +'<button class="add" style="width:100%;background:var(--forest);color:#fff;border:none;border-radius:10px;padding:12px;font-family:inherit;font-weight:800;cursor:pointer" onclick="createMission()">Créer la mission</button></div>';
 
   if(!dataM.length){html+='<div class="empty">Aucune mission pour l\'instant.</div>';}
@@ -302,10 +313,11 @@ function renderMissions(box,info){
       const link=ptLink(m.token);
       return '<div class="item">'
         +'<div class="top"><div class="who">'+(m.famille_prenom||'—')+' · '+(m.intervenant_nom||'—')+'</div></div>'
-        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+(m.accept==='accepte'?'<span class="badge b-ok">✅ Intervenant a accepté</span>':m.accept==='refuse'?'<span class="badge b-urg">⚠️ Intervenant a refusé</span>':'')+'</div>'
+        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+(m.intervenant_user_id?'<span class="badge b-ok">🧑 Compte intervenant lié</span>':'')+(m.accept==='accepte'?'<span class="badge b-ok">✅ Intervenant a accepté</span>':m.accept==='refuse'?'<span class="badge b-urg">⚠️ Intervenant a refusé</span>':'')+'</div>'
         +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
         +'<div class="mlink"><span>'+link+'</span><button onclick="copyLink(\''+link+'\')">Copier</button></div>'
         +(m.famille_user_id?'':'<div class="mlink"><input id="fe_'+m.id+'" type="email" placeholder="email du compte famille" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkFam(\''+m.id+'\')">Lier</button></div>')
+        +(m.intervenant_user_id?'':'<div class="mlink"><input id="ie_'+m.id+'" type="email" placeholder="email du compte intervenant" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkInterv(\''+m.id+'\')">Lier</button></div>')
         +'<div class="actions"><button class="act green" onclick="validateMonthAdmin(\''+m.id+'\')">Valider le mois</button></div>'
         +'</div>';
     }).join('');
@@ -319,10 +331,12 @@ async function createMission(){
   const regime=document.getElementById('m_regime').value;
   const taux=parseFloat(document.getElementById('m_taux').value)||null;
   const femail=document.getElementById('m_femail').value.trim();
+  const iemail=document.getElementById('m_iemail').value.trim();
   if(!fprenom||!interv){alert('Renseignez au moins le prénom de la famille et le nom de l\'intervenant.');return;}
   const {data:ins,error}=await sb.from('missions').insert({famille_prenom:fprenom,famille_tel:ftel,intervenant_nom:interv,regime,taux_horaire:taux}).select().single();
   if(error){alert('Erreur : '+error.message);return;}
   if(femail&&ins){const {error:e2}=await sb.rpc('admin_link_family',{p_mission_id:ins.id,p_email:femail});if(e2)alert('Mission créée, mais lien famille impossible : '+e2.message);}
+  if(iemail&&ins){const {error:e3}=await sb.rpc('admin_link_intervenant',{p_mission_id:ins.id,p_email:iemail});if(e3)alert('Mission créée, mais lien intervenant impossible : '+e3.message);}
   await reload(); show('missions');
 }
 async function linkFam(missionId){
@@ -330,6 +344,14 @@ async function linkFam(missionId){
   if(!v){alert('Entrez l\'email du compte famille.');return;}
   const {error}=await sb.rpc('admin_link_family',{p_mission_id:missionId,p_email:v});
   if(error){alert(error.message);return;}
+  await reload(); show('missions');
+}
+async function linkInterv(missionId){
+  const v=document.getElementById('ie_'+missionId).value.trim();
+  if(!v){alert('Entrez l\'email du compte intervenant.');return;}
+  const {error}=await sb.rpc('admin_link_intervenant',{p_mission_id:missionId,p_email:v});
+  if(error){alert(error.message);return;}
+  alert('Email enregistré. La mission se reliera automatiquement à son espace (dès que l\'intervenant aura créé son compte avec cet email).');
   await reload(); show('missions');
 }
 function copyLink(url){navigator.clipboard.writeText(url).then(()=>alert('Lien copié ✅')).catch(()=>prompt('Copiez le lien :',url));}
