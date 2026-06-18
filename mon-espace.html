@@ -63,6 +63,291 @@
     <div class="sep" id="pwSep">ou avec un mot de passe</div>
     <input id="pwd" type="password" autocomplete="current-password" placeholder="Mot de passe">
     <button class="btn" id="pwBtn" onclick="pwSubmit()">Se connecter</button>
+    <div class="small" id="forgotLink" style="margin-top:8px"><button class="link" onclick="forgotPassword()">Mot de passe oublié ?</button></div>
+    <div class="small" id="authToggle"></div>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div class="small" style="margin-top:14px;text-align:center"><a href="index.html" style="color:var(--forest);text-decoration:none">← Retour à l'accueil</a></div>
+</div>
+
+<div id="app">
+  <header><div class="wrap"><a href="index.html" style="text-decoration:none"><span class="brand">Chloé Domicile</span></a><button class="out" onclick="logout()">Déconnexion</button></div></header>
+  <div class="wrap">
+    <div class="hi" id="hi">Bonjour 👋</div>
+    <div id="body"><div class="loading">Chargement…</div></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://tiappxjyhysezrbssuiz.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+let myInterv=null;
+function setMsg(t,ok){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
+function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
+
+async function magicLink(){
+  const email=document.getElementById('email').value.trim();
+  if(!email){setMsg('Entrez votre email.');return;}
+  const b=document.getElementById('magicBtn');b.disabled=true;b.textContent='Envoi…';
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  b.disabled=false;b.textContent='📩 Recevoir un lien de connexion';
+  if(error){setMsg(error.message);return;}
+  setMsg('Lien envoyé ! Ouvrez votre boîte mail et cliquez sur le lien.',true);
+}
+async function pwLogin(){
+  const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
+  if(!email||!pwd){setMsg('Email et mot de passe requis.');return;}
+  const {error}=await sb.auth.signInWithPassword({email,password:pwd});
+  if(error){
+    setAuthMode('signup');
+    document.getElementById('email').value=email; document.getElementById('pwd').value=pwd;
+    setMsg('Pas encore de compte avec cet email ? Choisissez un mot de passe (6 caractères min.) puis touchez « Créer mon compte ». (Si vous avez déjà un compte, vérifiez votre mot de passe.)');
+    return;
+  }
+  enter();
+}
+async function pwSignup(){
+  const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
+  if(!email||!pwd){setMsg('Entrez un email et choisissez un mot de passe.');return;}
+  if(pwd.length<6){setMsg('Le mot de passe doit faire au moins 6 caractères.');return;}
+  const {data,error}=await sb.auth.signUp({email,password:pwd,options:{emailRedirectTo:location.origin+location.pathname}});
+  if(error){setMsg(error.message);return;}
+  if(data.user && data.user.identities && data.user.identities.length===0){ setMsg('Un compte existe déjà avec cet email. Connectez-vous ci-dessous.'); setAuthMode('login'); return; }
+  if(data.session){enter();} else {setMsg('Compte créé ! Vérifiez vos emails pour confirmer, puis connectez-vous.',true);}
+}
+let authMode='login';
+function setAuthMode(m){
+  authMode=m;
+  document.getElementById('authSub').textContent   = m==='login'?'Connexion':'Créer mon compte';
+  document.getElementById('pwBtn').textContent      = m==='login'?'Se connecter':'Créer mon compte';
+  document.getElementById('pwd').setAttribute('autocomplete', m==='login'?'current-password':'new-password');
+  document.getElementById('pwSep').textContent      = m==='login'?'ou avec un mot de passe':'ou choisissez un mot de passe';
+  document.getElementById('authToggle').innerHTML   = m==='login'
+    ? 'Première visite&nbsp;? <button class="link" onclick="setAuthMode(\'signup\')">Créer mon compte</button>'
+    : 'Déjà inscrit·e&nbsp;? <button class="link" onclick="setAuthMode(\'login\')">Se connecter</button>';
+  document.getElementById('msg').textContent='';
+  const fl=document.getElementById('forgotLink'); if(fl) fl.style.display=(m==='login')?'':'none';
+}
+async function forgotPassword(){
+  const email=document.getElementById('email').value.trim();
+  if(!email){setMsg('Entrez d\'abord votre email ci-dessus, puis retouchez « Mot de passe oublié ? ».');return;}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){setMsg(error.message);return;}
+  setMsg('Email envoyé ! Ouvrez votre boîte mail et cliquez sur le lien pour choisir un nouveau mot de passe.',true);
+}
+function pwSubmit(){ return authMode==='login'?pwLogin():pwSignup(); }
+setAuthMode('login');
+const _params=new URLSearchParams(location.search);
+let urlRole=_params.get('role');
+(()=>{ const em=_params.get('email'); if(em){ const f=document.getElementById('email'); if(f) f.value=em; setAuthMode('signup'); } })();
+async function logout(){await sb.auth.signOut();location.reload();}
+
+async function getProfile(uid){const {data}=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();return data;}
+
+async function enter(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user)return;
+  const prof=await getProfile(user.id);
+  if(!prof){ if(urlRole==='famille'||urlRole==='intervenant'){ setRole(urlRole); } else { chooseRole(); } return; }
+  route(prof,user);
+}
+function chooseRole(){
+  document.getElementById('hi').textContent='Bienvenue 👋';
+  document.getElementById('body').innerHTML=
+    '<div class="empty" style="text-align:left">Pour finaliser votre accès, dites-nous qui vous êtes :</div>'
+    +'<div style="display:flex;gap:10px;margin-top:14px">'
+    +'<button class="btn" style="flex:1" onclick="setRole(\'famille\')">Je suis une famille</button>'
+    +'<button class="btn alt" style="flex:1" onclick="setRole(\'intervenant\')">Je suis intervenant·e</button>'
+    +'</div>';
+}
+async function setRole(role){
+  const {data:{user}}=await sb.auth.getUser();
+  const {error}=await sb.from('profiles').insert({id:user.id,role});
+  if(error){alert(error.message);return;}
+  route({id:user.id,role},user);
+}
+function route(prof,user){
+  document.getElementById('hi').textContent='Bonjour'+(prof.prenom?' '+prof.prenom:'')+' 👋';
+  if(prof.role==='admin'){document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Vous êtes connectée en administratrice.</div><a class="go" href="admin.html" style="margin-top:12px">Ouvrir le cockpit →</a>';return;}
+  if(prof.role==='intervenant'){return renderIntervenant();}
+  return renderFamille();
+}
+
+function monthTotal(pts,missionId){
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth()+1;
+  return pts.filter(p=>p.mission_id===missionId&&(()=>{const d=new Date(p.date);return d.getFullYear()===y&&(d.getMonth()+1)===mo;})()).reduce((s,p)=>s+p.minutes,0);
+}
+
+async function renderFamille(){
+  let dParam=new URLSearchParams(location.search).get('d');
+  if(!dParam){ try{ dParam=localStorage.getItem('cd_demande'); }catch(e){} }
+  if(dParam){ try{ await sb.rpc('claim_demande',{p_id:dParam}); }catch(e){console.error('claim',e);} try{ localStorage.removeItem('cd_demande'); }catch(e){} }
+  const [rd,rm,rp,rdec]=await Promise.all([
+    sb.from('demandes').select('*').order('created_at',{ascending:false}),
+    sb.from('missions').select('*').order('created_at',{ascending:false}),
+    sb.from('pointages').select('*'),
+    sb.from('declarations').select('*')
+  ]);
+  const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[], decls=rdec.data||[];
+  const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
+  const PY=_p.getFullYear(), PM=_p.getMonth()+1;
+  function prevStatus(mid){
+    const its=pts.filter(p=>{const d=new Date(p.date);return p.mission_id===mid&&d.getFullYear()===PY&&(d.getMonth()+1)===PM;});
+    if(!its.length) return null;
+    if(!its.every(p=>p.statut==='valide')) return 'à valider';
+    if(!decls.find(d=>d.mission_id===mid&&d.annee===PY&&d.mois===PM)) return 'à déclarer';
+    return 'déclaré';
+  }
+  let h='';
+  const pend=missions.find(m=>{const s=prevStatus(m.id);return s==='à valider'||s==='à déclarer';});
+  if(pend){const s=prevStatus(pend.id);
+    h+='<div class="section"><div class="item" style="border:1.5px solid var(--coral);background:#fdeee9">'
+      +'<div class="who">⏰ '+MOIS[PM-1]+' : heures '+s+'</div>'
+      +'<div class="meta">Pour '+(pend.intervenant_nom||'votre intervenant')+'. Quelques secondes suffisent.</div>'
+      +'<a class="go" href="pointage.html?m='+pend.token+'" style="background:var(--coral)">'+(s==='à valider'?'Valider les heures →':'Déclarer en 2 min →')+'</a></div></div>';
+  }
+  h+='<div class="section"><h2>Ma demande</h2>';
+  if(!demandes.length){h+='<div class="empty">Aucune demande associée à votre compte pour l\'instant.</div>';}
+  else{h+=demandes.map(d=>{
+    const st=d.statut==='traitee'?'<span class="badge b-ok">Traitée</span>':d.statut==='en_cours'?'<span class="badge b-wait">En cours</span>':d.statut==='rappelee'?'<span class="badge b-ok">Rappelée</span>':'<span class="badge b-new">Reçue</span>';
+    return '<div class="item"><div class="badges" style="margin-bottom:6px"><span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+st+'</div><div class="meta">📍 '+(d.commune||'-')+'</div></div>';
+  }).join('');}
+  h+='</div><div class="section"><h2>Mes intervenants</h2>';
+  if(!missions.length){h+='<div class="empty">Dès que Chloé vous a proposé un intervenant, il apparaîtra ici avec le suivi des heures.</div>';}
+  else{h+=missions.map(m=>{
+    const tot=monthTotal(pts,m.id);
+    const montant=m.taux_horaire?(tot/60*Number(m.taux_horaire)).toFixed(2)+' €':'';
+    const ps=prevStatus(m.id);
+    const psBadge=ps?(' · '+MOIS[PM-1]+' : '+(ps==='déclaré'?'✅ déclaré':ps)):'';
+    return '<div class="item"><div class="top"><div class="who">'+(m.intervenant_nom||'—')+'</div></div>'
+      +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span></div>'
+      +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+psBadge+'</div>'
+      +'<a class="go" href="pointage.html?m='+m.token+'">Voir / valider les heures →</a></div>';
+  }).join('');}
+  h+='</div>';
+  if(demandes.length){ h+='<div class="section"><h2>✨ Intervenants proposés</h2><div id="famMatch"><div class="loading">Recherche en cours…</div></div></div>'; }
+  document.getElementById('body').innerHTML=h;
+  if(demandes.length) loadFamMatch(demandes[0].id);
+}
+async function loadFamMatch(demandeId){
+  const box=document.getElementById('famMatch'); if(!box)return;
+  try{
+    const {data,error}=await sb.functions.invoke('match',{body:{demande_id:demandeId}});
+    if(error)throw error;
+    const ms=(data&&data.matches)||[];
+    if(!ms.length){box.innerHTML='<div class="empty">Nous cherchons la bonne personne pour vous. Chloé vous recontacte très vite.</div>';return;}
+    box.innerHTML=ms.map(x=>'<div class="item"><div class="who">'+(x.nom||'—')+' <span class="badge b-ok">'+(x.score||0)+'% adapté</span></div><div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div>'+(x.raison?'<div style="font-size:.9rem;margin-top:4px">'+x.raison+'</div>':'')+(x.id?'<button class="go" style="background:var(--coral)" onclick="interesse(\''+demandeId+'\',\''+x.id+'\',this)">💛 Je suis intéressé·e</button>':'')+'</div>').join('')+'<div class="empty" style="margin-top:8px">Indiquez qui vous intéresse : Chloé organise la mise en relation, vous n\'avez rien d\'autre à faire.</div>';
+  }catch(e){box.innerHTML='<div class="empty">Recherche en cours… Chloé vous recontacte très vite.</div>';}
+}
+async function interesse(d,i,btn){
+  btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
+  try{ const {error}=await sb.rpc('signaler_interet',{p_demande:d,p_intervenant:i}); if(error)throw error; btn.textContent='💛 Intérêt transmis ✓'; btn.style.background='var(--forest)'; }
+  catch(e){ btn.disabled=false; btn.textContent=old; alert('Une erreur est survenue, réessayez.'); }
+}
+
+async function renderIntervenant(){
+  const {data:{user}}=await sb.auth.getUser();
+  try{ await sb.rpc('claim_intervenant'); }catch(e){}
+  const [ri,rm,rp]=await Promise.all([
+    sb.from('intervenants').select('*').eq('user_id',user.id).maybeSingle(),
+    sb.from('missions').select('*').order('created_at',{ascending:false}),
+    sb.from('pointages').select('*')
+  ]);
+  const prof=ri.data; myInterv=prof; const missions=rm.data||[], pts=rp.data||[];
+  if(!prof){
+    document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Aucune fiche intervenant n\'est associée à cet email.<br>Inscrivez-vous via le site (bouton « Rejoindre le réseau »), en utilisant <b>le même email</b> que ce compte.</div><a class="go" href="index.html" style="margin-top:12px">Aller au site →</a>';
+    return;
+  }
+  const esc=s=>(s||'').replace(/"/g,'&quot;');
+  const stB=prof.statut==='valide'?'<span class="badge b-ok">Profil validé</span>':prof.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">En cours de vérification</span>';
+  const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à vérifier</span>';
+  const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
+  const PY=_p.getFullYear(), PM=_p.getMonth()+1;
+  const curStart=new Date(); curStart.setDate(1); curStart.setHours(0,0,0,0);
+  function prevStatusI(mid){
+    const its=pts.filter(p=>{const d=new Date(p.date);return p.mission_id===mid&&d.getFullYear()===PY&&(d.getMonth()+1)===PM;});
+    if(!its.length) return 'à saisir';
+    if(!its.every(p=>p.statut==='valide')) return 'en attente de validation';
+    return 'validé';
+  }
+  let earn=0; missions.forEach(m=>{ if(m.taux_horaire){ earn+=monthTotal(pts,m.id)/60*Number(m.taux_horaire); } });
+  const pendI=missions.find(m=>new Date(m.created_at)<curStart && prevStatusI(m.id)==='à saisir');
+  let h='';
+  if(pendI){
+    h+='<div class="section"><div class="item" style="border:1.5px solid var(--coral);background:#fdeee9">'
+      +'<div class="who">⏰ Pense à saisir tes heures de '+MOIS[PM-1]+'</div>'
+      +'<div class="meta">Pour '+(pendI.famille_prenom||'cette famille')+'. La famille pourra ensuite valider.</div>'
+      +'<a class="go" href="pointage.html?m='+pendI.token+'" style="background:var(--coral)">Saisir mes heures →</a></div></div>';
+  }
+  h+='<div class="section"><h2>Mon profil</h2><div class="item">'
+    +'<div class="who" style="font-weight:700;font-size:1.05rem">'+(prof.nom||'—')+'</div>'
+    +'<div class="badges" style="margin-top:6px">'+stB+casB+'</div>'
+    +'<div style="margin-top:12px">'
+    +'<label>Communes où j\'interviens</label><input id="e_zone" value="'+esc(prof.zone)+'">'
+    +'<label>Spécialités</label><input id="e_spe" value="'+esc(prof.specialites)+'">'
+    +'<label>Années d\'expérience</label><input id="e_exp" type="number" value="'+(prof.experience!=null?prof.experience:'')+'">'
+    +'<label>Mes disponibilités</label><input id="e_dispo" value="'+esc(prof.disponibilites)+'">'
+    +'<label>Quelques mots sur moi (vu par les familles)</label><textarea id="e_bio" rows="3" style="width:100%;font-family:inherit;font-size:1rem;padding:11px;border:1.5px solid var(--line);border-radius:11px" placeholder="Ex. Auxiliaire de vie depuis 8 ans, douce et patiente, j\'aime accompagner au quotidien…">'+esc(prof.bio)+'</textarea>'
+    +'<button class="btn" style="margin-top:4px" onclick="saveInterv()">Enregistrer</button>'
+    +'<div class="msg" id="e_msg"></div>'
+    +'</div></div></div>';
+  if(!prof.casier_ok){
+    h+='<div class="section"><div class="item" style="background:#fff8f3;border:1.5px solid var(--coral-tint,#f3d9cd)">'
+      +'<div class="who">🛡️ Obtiens ton casier (bulletin n°3)</div>'
+      +'<div class="meta" style="margin-top:4px">C\'est <b>gratuit</b> et indispensable pour être validé·e. En ligne, la réponse arrive souvent en moins d\'une heure si tu es né·e en France.</div>'
+      +'<a class="go" href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener" style="background:var(--forest)">Faire ma demande sur le site officiel →</a></div></div>';
+  }
+  if(earn>0){
+    h+='<div class="section"><div class="item" style="background:var(--forest);color:#fff;border:none">'
+      +'<div class="meta" style="color:#cfe3dc">Ce que tu gagnes ce mois-ci (estimation)</div>'
+      +'<div style="font-size:1.6rem;font-weight:800;margin-top:2px">'+earn.toFixed(2)+' € net</div></div></div>';
+  }
+  h+='<div class="section"><h2>Mes missions</h2>';
+  if(!missions.length){h+='<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';}
+  else{h+=missions.map(m=>{const tot=monthTotal(pts,m.id);const ps=prevStatusI(m.id);
+    const accBadge=m.accept==='accepte'?'<span class="badge b-ok">✅ Acceptée</span>':m.accept==='refuse'?'<span class="badge b-wait">Refusée</span>':'';
+    const accBtns=!m.accept?'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" onclick="acceptM(\''+m.id+'\',\'accepte\')">J\'accepte</button><button class="btn ghost" style="flex:1" onclick="acceptM(\''+m.id+'\',\'refuse\')">Je ne peux pas</button></div>':'';
+    return '<div class="item"><div class="top"><div class="who">'+(m.famille_prenom||'—')+'</div></div>'
+      +(accBadge?'<div class="badges">'+accBadge+'</div>':'')
+      +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b> · '+MOIS[PM-1]+' : '+(ps==='validé'?'✅ validé':ps)+'</div>'
+      +accBtns
+      +'<a class="go" href="pointage.html?m='+m.token+'">Pointer mes heures →</a></div>';}).join('');}
+  h+='</div>';
+  document.getElementById('body').innerHTML=h;
+}
+async function saveInterv(){
+  if(!myInterv)return;
+  const upd={zone:document.getElementById('e_zone').value.trim(),specialites:document.getElementById('e_spe').value.trim(),experience:parseInt(document.getElementById('e_exp').value)||null,disponibilites:document.getElementById('e_dispo').value.trim(),bio:document.getElementById('e_bio').value.trim()};
+  const {error}=await sb.from('intervenants').update(upd).eq('id',myInterv.id);
+  const m=document.getElementById('e_msg');
+  if(error){m.className='msg err';m.textContent=error.message;return;}
+  m.className='msg ok';m.textContent='Enregistré ✅';
+}
+window.acceptM=async(id,val)=>{
+  if(val==='refuse' && !confirm('Indiquer que tu ne peux pas prendre cette mission ?'))return;
+  const {error}=await sb.rpc('accept_mission',{p_id:id,p_accept:val});
+  if(error){alert('Erreur : '+error.message);return;}
+  renderIntervenant();
+};
+
+// Détecte la connexion (y compris au retour du lien magique)
+sb.auth.onAuthStateChange(async(_e,session)=>{
+  if(_e==='PASSWORD_RECOVERY'){
+    const np=prompt('Choisissez un nouveau mot de passe (6 caractères minimum) :');
+    if(np&&np.length>=6){ const {error}=await sb.auth.updateUser({password:np}); if(error){alert(error.message);return;} alert('Mot de passe mis à jour ✅'); enter(); }
+    else if(np!==null){ alert('Mot de passe trop court (6 caractères minimum).'); }
+    return;
+  }
+  if(session && document.getElementById('app').style.display!=='block') enter();
+});
+(async()=>{ const {data:{session}}=await sb.auth.getSession(); if(session) enter(); })();
+</script>
+</body>
+</html>    <button class="btn" id="pwBtn" onclick="pwSubmit()">Se connecter</button>
     <div class="small" id="authToggle"></div>
     <div class="msg" id="msg"></div>
   </div>
