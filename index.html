@@ -224,6 +224,7 @@
       <div class="ffield"><label>Email</label><input id="n_email" type="email" inputmode="email" placeholder="pour accéder à votre espace" oninput="checkNet()"></div>
       <div class="ffield"><label>Choisissez un mot de passe</label><input id="n_pwd" type="password" autocomplete="new-password" placeholder="6 caractères minimum" oninput="checkNet()"></div>
       <div class="ffield"><label>Confirmez le mot de passe</label><input id="n_pwd2" type="password" autocomplete="new-password" placeholder="retapez votre mot de passe" oninput="checkNet()"></div>
+      <div id="n_pwmsg" style="font-size:.84rem;font-weight:600;margin:-6px 0 8px;min-height:1.1em"></div>
       <div class="ffield"><label>Communes où vous intervenez</label><input id="n_zone" placeholder="ex. Talant, Dijon, Chenôve…"></div>
       <label>Vous proposez</label>
       <div class="checks" id="n_services">
@@ -407,7 +408,17 @@ async function submitForm(){
 function showNetwork(){cnxFab(false);document.getElementById('chooser').style.display='none';document.getElementById('experience').style.display='none';document.getElementById('netform').style.display='block';document.getElementById('netDone').classList.remove('show');document.getElementById('network').style.display='block';window.scrollTo(0,0);}
 function closeNetwork(){cnxFab(true);document.getElementById('network').style.display='none';document.getElementById('chooser').style.display='flex';window.scrollTo(0,0);}
 function tog(el){el.classList.toggle('on');el.querySelector('.box').textContent=el.classList.contains('on')?'✓':'';checkNet();}
-function checkNet(){const pw=document.getElementById('n_pwd').value,pw2=document.getElementById('n_pwd2').value;const ok=document.getElementById('n_nom').value.trim()&&document.getElementById('n_tel').value.trim()&&document.getElementById('n_email').value.trim()&&pw.length>=6&&pw===pw2&&document.getElementById('n_zone').value.trim()&&document.getElementById('n_casier').checked;document.getElementById('n_submit').disabled=!ok;}
+function checkNet(){
+  const pw=document.getElementById('n_pwd').value, pw2=document.getElementById('n_pwd2').value;
+  const msg=document.getElementById('n_pwmsg');
+  let pwOk=false;
+  if(!pw && !pw2){ msg.textContent=''; }
+  else if(pw.length<6){ msg.textContent='Mot de passe : 6 caractères minimum.'; msg.style.color='var(--coral)'; }
+  else if(pw!==pw2){ msg.textContent='Les deux mots de passe ne sont pas identiques.'; msg.style.color='var(--coral)'; }
+  else { msg.textContent='✓ Les mots de passe correspondent'; msg.style.color='var(--forest)'; pwOk=true; }
+  const ok=document.getElementById('n_nom').value.trim()&&document.getElementById('n_tel').value.trim()&&document.getElementById('n_email').value.trim()&&pwOk&&document.getElementById('n_zone').value.trim()&&document.getElementById('n_casier').checked;
+  document.getElementById('n_submit').disabled=!ok;
+}
 ['n_nom','n_tel','n_zone'].forEach(i=>document.getElementById(i).addEventListener('input',checkNet));
 async function submitNetwork(){
   const services=[...document.querySelectorAll('#n_services .check.on')].map(e=>e.textContent.replace('✓','').trim());
