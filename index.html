@@ -240,8 +240,9 @@
     <div class="done" id="netDone">
       <div class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
       <h3>Bienvenue dans le réseau !</h3>
-      <p>On a bien reçu votre inscription. Votre profil sera vérifié, puis on vous recontacte pour les premières missions.</p>
-      <button class="cta" style="margin-top:18px;background:var(--forest)" onclick="closeNetwork()">Retour à l'accueil</button>
+      <p>On a bien reçu votre inscription. Créez votre espace pour suivre vos missions, pointer vos heures et voir vos paiements.</p>
+      <a id="netCta" class="cta" href="mon-espace.html?role=intervenant" style="display:inline-block;margin-top:16px;text-decoration:none;background:var(--coral)">Créer mon espace intervenant →</a>
+      <button class="cta" style="margin-top:12px;background:var(--forest)" onclick="closeNetwork()">Retour à l'accueil</button>
     </div>
   </div>
   <footer>Chloé Domicile est un service de mise en relation. Les familles emploient directement leur intervenant (CESU / Pajemploi) et en restent l'employeur.</footer>
@@ -384,7 +385,7 @@ async function submitForm(){
   const newId=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(16).slice(2));
   const rec={id:newId,type:current,commune:g('f_commune'),prenom:g('f_prenom'),telephone:g('f_tel'),quand:g('f_quand'),heures:g('f_heures'),specificite:g('f_spe'),budget:g('f_budget'),urgent:formUrgent,source:'site'};
   const btn=document.getElementById('f_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
-  if(sb){ const {error}=await sb.from('demandes').insert(rec); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):"")+"\n\nSi le souci persiste, appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} const a=document.getElementById('espaceCta'); if(a) a.href='mon-espace.html?d='+newId; }
+  if(sb){ const {error}=await sb.from('demandes').insert(rec); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):"")+"\n\nSi le souci persiste, appelez-nous directement.");console.error(error);btn.disabled=false;btn.textContent=old;return;} const a=document.getElementById('espaceCta'); if(a) a.href='mon-espace.html?d='+newId; try{localStorage.setItem('cd_demande',newId);}catch(e){} }
   // Happening : combien d'intervenants validés près de la commune ?
   let n=0;
   if(sb){ try{ const {data:c}=await sb.rpc('count_matchs',{p_commune:rec.commune,p_type:current}); n=c||0; }catch(e){} }
@@ -410,7 +411,7 @@ async function submitNetwork(){
   const services=[...document.querySelectorAll('#n_services .check.on')].map(e=>e.textContent.replace('✓','').trim());
   const rec={nom:document.getElementById('n_nom').value.trim(),telephone:document.getElementById('n_tel').value.trim(),email:document.getElementById('n_email').value.trim(),zone:document.getElementById('n_zone').value.trim(),services:services,specialites:document.getElementById('n_spe').value.trim(),experience:parseInt(document.getElementById('n_exp').value)||null,disponibilites:document.getElementById('n_dispo').value.trim(),casier_consent:document.getElementById('n_casier').checked};
   const btn=document.getElementById('n_submit'); btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
-  if(sb){ const {error}=await sb.from('intervenants').insert(rec); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):""));console.error(error);btn.disabled=false;btn.textContent=old;return;} }
+  if(sb){ const {error}=await sb.from('intervenants').insert(rec); if(error){alert("Erreur : "+(error.message||"")+(error.hint?("\n"+error.hint):""));console.error(error);btn.disabled=false;btn.textContent=old;return;} const a=document.getElementById('netCta'); if(a) a.href='mon-espace.html?role=intervenant&email='+encodeURIComponent(rec.email); }
   document.getElementById('netform').style.display='none';
   document.getElementById('netDone').classList.add('show');
   window.scrollTo(0,0);
