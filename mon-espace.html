@@ -53,6 +53,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <div id="login">
+  <img src="icon-512.png" alt="Chloé Domicile" style="width:80px;height:80px;display:block;margin:0 auto 8px;border-radius:20px">
   <div class="brand">Chloé Domicile</div>
   <div class="sub" id="authSub">Connexion</div>
   <div class="box">
@@ -124,6 +125,9 @@ function setAuthMode(m){
 }
 function pwSubmit(){ return authMode==='login'?pwLogin():pwSignup(); }
 setAuthMode('login');
+const _params=new URLSearchParams(location.search);
+let urlRole=_params.get('role');
+(()=>{ const em=_params.get('email'); if(em){ const f=document.getElementById('email'); if(f) f.value=em; setAuthMode('signup'); } })();
 async function logout(){await sb.auth.signOut();location.reload();}
 
 async function getProfile(uid){const {data}=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();return data;}
@@ -134,7 +138,7 @@ async function enter(){
   const {data:{user}}=await sb.auth.getUser();
   if(!user)return;
   const prof=await getProfile(user.id);
-  if(!prof){ chooseRole(); return; }
+  if(!prof){ if(urlRole==='famille'||urlRole==='intervenant'){ setRole(urlRole); } else { chooseRole(); } return; }
   route(prof,user);
 }
 function chooseRole(){
@@ -165,8 +169,9 @@ function monthTotal(pts,missionId){
 }
 
 async function renderFamille(){
-  const dParam=new URLSearchParams(location.search).get('d');
-  if(dParam){ try{ await sb.rpc('claim_demande',{p_id:dParam}); }catch(e){} }
+  let dParam=new URLSearchParams(location.search).get('d');
+  if(!dParam){ try{ dParam=localStorage.getItem('cd_demande'); }catch(e){} }
+  if(dParam){ try{ await sb.rpc('claim_demande',{p_id:dParam}); }catch(e){console.error('claim',e);} try{ localStorage.removeItem('cd_demande'); }catch(e){} }
   const [rd,rm,rp,rdec]=await Promise.all([
     sb.from('demandes').select('*').order('created_at',{ascending:false}),
     sb.from('missions').select('*').order('created_at',{ascending:false}),
