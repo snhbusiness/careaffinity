@@ -125,13 +125,17 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const JOURS=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 function fmtH(t){if(!t)return'';const p=t.split(':');return parseInt(p[0],10)+'h'+(p[1]&&p[1]!=='00'?p[1]:'');}
+function creLabel(c){
+  const when = c.date ? new Date(c.date+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) : (JOURS[c.jour]+' (chaque semaine)');
+  return when+' · '+fmtH(c.debut)+'–'+fmtH(c.fin);
+}
 function planSemaine(creneaux, withName){
   if(!creneaux||!creneaux.length) return '<div class="empty">Aucun créneau pour l\'instant. Chloé l\'organise avec vous.</div>';
   const byDay={};
   creneaux.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut)).forEach(c=>{(byDay[c.jour]=byDay[c.jour]||[]).push(c);});
   let h='';
   for(let j=1;j<=7;j++){ if(!byDay[j])continue;
-    h+='<div class="day"><div class="day-n">'+JOURS[j]+'</div>'+byDay[j].map(c=>'<div class="slot">🕘 '+fmtH(c.debut)+'–'+fmtH(c.fin)+(withName&&c._name?' · '+c._name:'')+'</div>').join('')+'</div>';
+    h+='<div class="day"><div class="day-n">'+JOURS[j]+'</div>'+byDay[j].map(c=>'<div class="slot">🕘 '+fmtH(c.debut)+'–'+fmtH(c.fin)+(c.date?' <span style="color:var(--coral)">(le '+new Date(c.date+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+')</span>':'')+(withName&&c._name?' · '+c._name:'')+'</div>').join('')+'</div>';
   }
   return h;
 }
@@ -240,14 +244,15 @@ async function renderFamille(){
   let dParam=new URLSearchParams(location.search).get('d');
   if(!dParam){ try{ dParam=localStorage.getItem('cd_demande'); }catch(e){} }
   if(dParam){ try{ await sb.rpc('claim_demande',{p_id:dParam}); }catch(e){console.error('claim',e);} try{ localStorage.removeItem('cd_demande'); }catch(e){} }
-  const [rd,rm,rp,rdec,rc]=await Promise.all([
+  const [rd,rm,rp,rdec,rc,rdi]=await Promise.all([
     sb.from('demandes').select('*').order('created_at',{ascending:false}),
     sb.from('missions').select('*').order('created_at',{ascending:false}),
     sb.from('pointages').select('*'),
     sb.from('declarations').select('*'),
-    sb.from('creneaux').select('*')
+    sb.from('creneaux').select('*'),
+    sb.from('dispos').select('*')
   ]);
-  const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[], decls=rdec.data||[], creneaux=rc.data||[];
+  const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[], decls=rdec.data||[], creneaux=rc.data||[], dispos=rdi.data||[];
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
   function prevStatus(mid){
@@ -307,10 +312,35 @@ async function renderFamille(){
     }).join('');
   }
 
-  // 4bis) LE PLANNING (semaine type)
-  if(creneaux.length){
-    const cAnn=creneaux.map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('avec '+(m.intervenant_nom||'votre intervenant')):''});});
+  // 4bis) LE PLANNING (créneaux confirmés)
+  const confF=creneaux.filter(c=>c.statut==='confirme');
+  if(confF.length){
+    const cAnn=confF.map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('avec '+(m.intervenant_nom||'votre intervenant')):''});});
     h+='<h2>Le planning</h2>'+planSemaine(cAnn,true);
+  }
+
+  // 4ter) ORGANISER LE PLANNING (proposer des créneaux à l'intervenant)
+  const missInt=missions.filter(m=>m.intervenant_user_id);
+  if(missInt.length){
+    h+='<h2>Organiser le planning</h2>';
+    h+=missInt.map(m=>{
+      const idisp=dispos.filter(d=>d.intervenant_user_id===m.intervenant_user_id).sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut));
+      const mcre=creneaux.filter(c=>c.mission_id===m.id).sort((a,b)=>((a.jour||0)-(b.jour||0))||a.debut.localeCompare(b.debut));
+      let s='<div class="item"><div class="who">'+(m.intervenant_nom||'Votre intervenant')+'</div>';
+      s+= idisp.length
+        ? '<div class="meta" style="margin-top:4px">Disponible : '+idisp.map(d=>JOURS[d.jour]+' '+fmtH(d.debut)+'–'+fmtH(d.fin)).join(' · ')+'</div>'
+        : '<div class="meta" style="margin-top:4px">'+(m.intervenant_nom||'Votre intervenant')+' n\'a pas encore indiqué ses disponibilités.</div>';
+      if(mcre.length){ s+='<div style="margin-top:8px">'+mcre.map(c=>'<div class="cre"><span>'+creLabel(c)+' '+(c.statut==='confirme'?'<span class="badge b-ok">confirmé</span>':'<span class="badge b-wait">en attente</span>')+'</span>'+(c.statut!=='confirme'?'<button title="Annuler" onclick="cancelCreneau(\''+c.id+'\')">✕</button>':'')+'</div>').join('')+'</div>'; }
+      s+='<div style="margin-top:10px;font-weight:700;font-size:.88rem">Demander un créneau</div>'
+        +'<div class="dispo-add">'
+        +'<select id="ct_'+m.id+'" onchange="creType(\''+m.id+'\')"><option value="hebdo">Chaque semaine</option><option value="date">Une seule fois</option></select>'
+        +'<span id="cjw_'+m.id+'"><select id="cj_'+m.id+'">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select></span>'
+        +'<span id="cdw_'+m.id+'" style="display:none"><input id="cdate_'+m.id+'" type="date"></span>'
+        +'<input id="cdeb_'+m.id+'" type="time" value="09:00"><input id="cfin_'+m.id+'" type="time" value="11:00">'
+        +'<button onclick="proposeCreneau(\''+m.id+'\')">Demander</button></div>';
+      s+='</div>';
+      return s;
+    }).join('');
   }
 
   // 5) MA DEMANDE
@@ -414,10 +444,20 @@ async function renderIntervenant(){
   if(dsorted.length){ h+=dsorted.map(d=>'<div class="cre"><span>'+JOURS[d.jour]+' · '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join(''); }
   h+='<div class="dispo-add"><select id="dj">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select><input id="dd" type="time" value="09:00"><input id="df" type="time" value="12:00"><button onclick="addDispo()">+ Ajouter</button></div>';
 
-  // 3ter) MON PLANNING (créneaux confirmés avec les familles)
+  // 3ter) CRÉNEAUX À CONFIRMER (proposés par les familles)
   if(validated){
-    const cAnn=creneaux.map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('chez '+(m.famille_prenom||'famille')):''});});
-    h+='<h2>Mon planning</h2>'+planSemaine(cAnn,true);
+    const toConfirm=creneaux.filter(c=>c.statut==='propose').sort((a,b)=>(a.jour||0)-(b.jour||0));
+    if(toConfirm.length){
+      h+='<h2>Créneaux à confirmer</h2>';
+      h+=toConfirm.map(c=>{const m=missions.find(x=>x.id===c.mission_id);
+        return '<div class="item"><div class="who">'+((m&&m.famille_prenom)||'Une famille')+' souhaite :</div>'
+          +'<div class="meta" style="margin-top:2px">'+creLabel(c)+'</div>'
+          +'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" onclick="confirmCreneau(\''+c.id+'\')">Confirmer</button><button class="btn ghost" style="flex:1" onclick="refuseCreneau(\''+c.id+'\')">Refuser</button></div></div>';
+      }).join('');
+    }
+    // MON PLANNING (créneaux confirmés)
+    const conf=creneaux.filter(c=>c.statut==='confirme').map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('chez '+(m.famille_prenom||'famille')):''});});
+    h+='<h2>Mon planning</h2>'+planSemaine(conf,true);
   }
 
   // 4) MISSIONS (floutées si non validé)
@@ -463,13 +503,30 @@ async function saveInterv(){
   if(error){m.className='msg err';m.textContent=error.message;return;}
   m.className='msg ok';m.textContent='Enregistré ✅';
 }
+window.creType=(mid)=>{const t=document.getElementById('ct_'+mid).value;document.getElementById('cjw_'+mid).style.display=(t==='hebdo')?'':'none';document.getElementById('cdw_'+mid).style.display=(t==='date')?'':'none';};
+window.proposeCreneau=async(mid)=>{
+  const t=document.getElementById('ct_'+mid).value;
+  const deb=document.getElementById('cdeb_'+mid).value, fin=document.getElementById('cfin_'+mid).value;
+  if(!deb||!fin){alert('Indiquez un horaire de début et de fin.');return;}
+  if(fin<=deb){alert('L\'heure de fin doit être après le début.');return;}
+  const row={mission_id:mid,debut:deb,fin:fin,statut:'propose'};
+  if(t==='date'){ const dt=document.getElementById('cdate_'+mid).value; if(!dt){alert('Choisissez une date.');return;} const d=new Date(dt+'T00:00'); let j=d.getDay(); row.jour=(j===0?7:j); row.date=dt; }
+  else { row.jour=parseInt(document.getElementById('cj_'+mid).value,10); row.date=null; }
+  const {error}=await sb.from('creneaux').insert(row);
+  if(error){alert(error.message);return;}
+  renderFamille();
+};
+window.cancelCreneau=async(id)=>{ const {error}=await sb.from('creneaux').delete().eq('id',id); if(error){alert(error.message);return;} renderFamille(); };
+window.confirmCreneau=async(id)=>{ const {error}=await sb.from('creneaux').update({statut:'confirme'}).eq('id',id); if(error){alert(error.message);return;} renderIntervenant(); };
+window.refuseCreneau=async(id)=>{ const {error}=await sb.from('creneaux').delete().eq('id',id); if(error){alert(error.message);return;} renderIntervenant(); };
 window.addDispo=async()=>{
   if(!myInterv)return;
+  const {data:{user}}=await sb.auth.getUser();
   const jour=parseInt(document.getElementById('dj').value,10);
   const debut=document.getElementById('dd').value, fin=document.getElementById('df').value;
   if(!debut||!fin){alert('Indiquez une heure de début et de fin.');return;}
   if(fin<=debut){alert('La fin doit être après le début.');return;}
-  const {error}=await sb.from('dispos').insert({intervenant_id:myInterv.id,jour,debut,fin});
+  const {error}=await sb.from('dispos').insert({intervenant_id:myInterv.id,intervenant_user_id:user.id,jour,debut,fin});
   if(error){alert(error.message);return;}
   renderIntervenant();
 };
