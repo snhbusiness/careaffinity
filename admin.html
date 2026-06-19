@@ -115,7 +115,8 @@
       <button class="notifbtn" id="notifBtn" onclick="enableNotifs()">Activer</button>
     </div>
     <div class="tabs">
-      <button class="tab on" id="tabD" onclick="show('demandes')">Demandes<span class="count" id="cntD" style="display:none"></span></button>
+      <button class="tab on" id="tabA" onclick="show('today')">Aujourd'hui</button>
+      <button class="tab" id="tabD" onclick="show('demandes')">Demandes<span class="count" id="cntD" style="display:none"></span></button>
       <button class="tab" id="tabI" onclick="show('intervenants')">Intervenants<span class="count" id="cntI" style="display:none"></span></button>
       <button class="tab" id="tabM" onclick="show('missions')">Missions</button>
     </div>
@@ -134,7 +135,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const VAPID_PUBLIC  = 'BIQAac2L6D1FxK4jwN03m8w94A9n6_HZTMoTk3SGCAeYQK3FpVeWT70yOIa-Y01rQ5lEh2dck3-asnIK6cjMsgI';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-let tab='demandes', dataD=[], dataI=[], dataM=[], dataP=[], dataInt=[];
+let tab='today', dataD=[], dataI=[], dataM=[], dataP=[], dataInt=[];
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 function fmtDate(iso){const d=new Date(iso);return d.getDate()+' '+MOIS[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');}
 function tel(t){return t?('<a href="tel:'+t.replace(/\s/g,'')+'">'+t+'</a>'):'-';}
@@ -215,10 +216,43 @@ async function reload(){
   render();
 }
 function setCount(id,n){const e=document.getElementById(id);if(n>0){e.textContent=n;e.style.display='inline-block';}else{e.style.display='none';}}
-function show(t){tab=t;document.getElementById('tabD').classList.toggle('on',t==='demandes');document.getElementById('tabI').classList.toggle('on',t==='intervenants');document.getElementById('tabM').classList.toggle('on',t==='missions');render();}
+function show(t){tab=t;document.getElementById('tabA').classList.toggle('on',t==='today');document.getElementById('tabD').classList.toggle('on',t==='demandes');document.getElementById('tabI').classList.toggle('on',t==='intervenants');document.getElementById('tabM').classList.toggle('on',t==='missions');render();}
 
+function renderToday(box,info){
+  info.textContent='Vos priorités';
+  const s=n=>n>1?'s':'';
+  const demUrg=dataD.filter(d=>d.urgent && d.statut==='nouvelle');
+  const demNew=dataD.filter(d=>!d.urgent && d.statut==='nouvelle');
+  const demCours=dataD.filter(d=>d.statut==='en_cours');
+  const intVal=dataI.filter(i=>i.statut==='a_verifier' && i.casier_ok);
+  const intCas=dataI.filter(i=>i.statut==='a_verifier' && !i.casier_ok);
+  const missRef=dataM.filter(m=>m.accept==='refuse');
+  const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
+  const PY=_p.getFullYear(), PM=_p.getMonth()+1;
+  const missClose=dataM.filter(m=>{const its=dataP.filter(p=>{const d=new Date(p.date);return p.mission_id===m.id&&d.getFullYear()===PY&&(d.getMonth()+1)===PM;});return its.length && !its.every(p=>p.statut==='valide');});
+
+  function card(ic,kind,lab,cta,act){
+    return '<div class="item '+(kind||'')+'"><div class="top"><div class="who">'+ic+' '+lab+'</div></div>'
+      +'<div class="actions"><button class="act '+(kind==='urg'?'':'green')+'" onclick="'+act+'">'+cta+'</button></div></div>';
+  }
+  const cards=[];
+  if(demUrg.length)  cards.push(card('⚡','urg', '<b>'+demUrg.length+'</b> demande'+s(demUrg.length)+' <b>URGENTE'+s(demUrg.length).toUpperCase()+'</b> à traiter', 'Traiter', "show('demandes')"));
+  if(demNew.length)  cards.push(card('🆕','new', '<b>'+demNew.length+'</b> nouvelle'+s(demNew.length)+' demande'+s(demNew.length)+' à rappeler', 'Voir', "show('demandes')"));
+  if(missRef.length) cards.push(card('⚠️','urg', '<b>'+missRef.length+'</b> mission'+s(missRef.length)+' refusée'+s(missRef.length)+' — à réattribuer', 'Voir', "show('missions')"));
+  if(intVal.length)  cards.push(card('✅','new', '<b>'+intVal.length+'</b> intervenant'+s(intVal.length)+' prêt'+s(intVal.length)+' à valider (casier OK)', 'Valider', "show('intervenants')"));
+  if(missClose.length) cards.push(card('🧾','', '<b>'+missClose.length+'</b> mois à valider pour vos missions', 'Voir', "show('missions')"));
+  if(demCours.length) cards.push(card('📞','', '<b>'+demCours.length+'</b> demande'+s(demCours.length)+' en cours à suivre', 'Voir', "show('demandes')"));
+  if(intCas.length)  cards.push(card('🛡️','', '<b>'+intCas.length+'</b> intervenant'+s(intCas.length)+' en attente de casier (à relancer)', 'Voir', "show('intervenants')"));
+
+  let h='<div class="item" style="background:var(--forest);color:#fff;border:none"><div class="who" style="color:#fff;font-size:1.15rem">Bonjour Chloé 👋</div>'
+    +'<div class="meta" style="color:#cfe3dc;margin-top:2px">'+(cards.length?'Voici ce qui vous attend aujourd\'hui.':'Tout est à jour, rien d\'urgent. ✨')+'</div></div>';
+  if(cards.length){ h+=cards.join(''); }
+  else { h+='<div class="empty">Aucune action urgente. Profitez-en ! ☕<br><span style="font-size:.85rem;color:var(--muted)">Les nouvelles demandes et inscriptions remonteront ici automatiquement.</span></div>'; }
+  box.innerHTML=h;
+}
 function render(){
   const box=document.getElementById('list'), info=document.getElementById('listInfo');
+  if(tab==='today'){renderToday(box,info);return;}
   if(tab==='missions'){renderMissions(box,info);return;}
   if(tab==='demandes'){
     info.textContent=dataD.length+' demande(s)';
