@@ -77,6 +77,9 @@ details.prof[open]>summary::after{content:'⌃'}
 .steps .s.cur .dot{background:var(--coral);border-color:var(--coral)}
 .steps .s.cur{color:var(--coral);font-weight:800}
 .steps .s.done{color:var(--forest)}
+.day{margin-bottom:8px}
+.day-n{font-weight:800;color:var(--forest);font-size:.9rem;margin-bottom:3px}
+.slot{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-bottom:5px;font-size:.92rem}
 </style>
 </head>
 <body>
@@ -113,6 +116,18 @@ const SUPABASE_URL='https://tiappxjyhysezrbssuiz.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const JOURS=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function fmtH(t){if(!t)return'';const p=t.split(':');return parseInt(p[0],10)+'h'+(p[1]&&p[1]!=='00'?p[1]:'');}
+function planSemaine(creneaux, withName){
+  if(!creneaux||!creneaux.length) return '<div class="empty">Aucun créneau pour l\'instant. Chloé l\'organise avec vous.</div>';
+  const byDay={};
+  creneaux.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut)).forEach(c=>{(byDay[c.jour]=byDay[c.jour]||[]).push(c);});
+  let h='';
+  for(let j=1;j<=7;j++){ if(!byDay[j])continue;
+    h+='<div class="day"><div class="day-n">'+JOURS[j]+'</div>'+byDay[j].map(c=>'<div class="slot">🕘 '+fmtH(c.debut)+'–'+fmtH(c.fin)+(withName&&c._name?' · '+c._name:'')+'</div>').join('')+'</div>';
+  }
+  return h;
+}
 let myInterv=null;
 function setMsg(t,ok){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
 function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
@@ -218,13 +233,14 @@ async function renderFamille(){
   let dParam=new URLSearchParams(location.search).get('d');
   if(!dParam){ try{ dParam=localStorage.getItem('cd_demande'); }catch(e){} }
   if(dParam){ try{ await sb.rpc('claim_demande',{p_id:dParam}); }catch(e){console.error('claim',e);} try{ localStorage.removeItem('cd_demande'); }catch(e){} }
-  const [rd,rm,rp,rdec]=await Promise.all([
+  const [rd,rm,rp,rdec,rc]=await Promise.all([
     sb.from('demandes').select('*').order('created_at',{ascending:false}),
     sb.from('missions').select('*').order('created_at',{ascending:false}),
     sb.from('pointages').select('*'),
-    sb.from('declarations').select('*')
+    sb.from('declarations').select('*'),
+    sb.from('creneaux').select('*')
   ]);
-  const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[], decls=rdec.data||[];
+  const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[], decls=rdec.data||[], creneaux=rc.data||[];
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
   function prevStatus(mid){
@@ -284,6 +300,12 @@ async function renderFamille(){
     }).join('');
   }
 
+  // 4bis) LE PLANNING (semaine type)
+  if(creneaux.length){
+    const cAnn=creneaux.map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('avec '+(m.intervenant_nom||'votre intervenant')):''});});
+    h+='<h2>Le planning</h2>'+planSemaine(cAnn,true);
+  }
+
   // 5) MA DEMANDE
   h+='<h2>Ma demande</h2>';
   if(lastD){
@@ -319,12 +341,13 @@ async function loadFamCount(demandeId, d){
 async function renderIntervenant(){
   const {data:{user}}=await sb.auth.getUser();
   try{ await sb.rpc('claim_intervenant'); }catch(e){}
-  const [ri,rm,rp]=await Promise.all([
+  const [ri,rm,rp,rc]=await Promise.all([
     sb.from('intervenants').select('*').eq('user_id',user.id).maybeSingle(),
     sb.from('missions').select('*').order('created_at',{ascending:false}),
-    sb.from('pointages').select('*')
+    sb.from('pointages').select('*'),
+    sb.from('creneaux').select('*')
   ]);
-  const prof=ri.data; myInterv=prof; const missions=rm.data||[], pts=rp.data||[];
+  const prof=ri.data; myInterv=prof; const missions=rm.data||[], pts=rp.data||[], creneaux=rc.data||[];
   if(!prof){
     document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Aucune fiche intervenant n\'est associée à cet email.<br>Inscrivez-vous via le site (bouton « Rejoindre le réseau »), en utilisant <b>le même email</b> que ce compte.</div><a class="go" href="index.html" style="margin-top:12px">Aller au site →</a>';
     return;
@@ -375,6 +398,12 @@ async function renderIntervenant(){
     +'<div style="font-size:1.7rem;font-weight:800;margin-top:2px">'+fmtMin(monthMin)+'</div>'
     +(earn>0?'<div style="margin-top:2px;color:#cfe3dc">≈ '+earn.toFixed(2)+' € net estimés</div>':'<div style="margin-top:2px;color:#cfe3dc">Vos gains s\'afficheront ici dès vos premières heures.</div>')
     +'</div>';
+
+  // 3bis) MON PLANNING (semaine type)
+  if(validated){
+    const cAnn=creneaux.map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('chez '+(m.famille_prenom||'famille')):''});});
+    h+='<h2>Mon planning</h2>'+planSemaine(cAnn,true);
+  }
 
   // 4) MISSIONS (floutées si non validé)
   h+='<h2 id="msec">Mes missions</h2>';
