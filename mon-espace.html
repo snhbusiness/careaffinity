@@ -47,6 +47,27 @@
   .go{display:inline-block;margin-top:10px;background:var(--forest);color:#fff;text-decoration:none;font-weight:700;padding:10px 15px;border-radius:10px;font-size:.9rem}
   .empty{color:var(--muted);font-size:.95rem;background:#fff;border:1px dashed var(--line);border-radius:13px;padding:18px;text-align:center}
   .loading{text-align:center;color:var(--muted);padding:30px}
+.stat{border-radius:16px;padding:14px 16px;margin-bottom:16px;font-size:.92rem;line-height:1.4}
+.stat .t{font-weight:800;font-size:1.04rem;display:block;margin-bottom:3px}
+.stat.ok{background:#eaf3ee;border:1.5px solid #bcdcc9;color:var(--forest)}
+.stat.warn{background:#fdeee9;border:1.5px solid #f2cdbf;color:#a8492b}
+.todo{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px}
+.todo .row{display:flex;align-items:center;gap:11px;padding:12px 13px;border-bottom:1px solid var(--line)}
+.todo .row:last-child{border-bottom:none}
+.todo .row .ic{font-size:1.15rem;flex:none}
+.todo .row .lab{flex:1;font-size:.9rem;line-height:1.3}
+.todo .row a,.todo .row button{flex:none;font-size:.8rem;font-weight:700;color:#fff;background:var(--coral);border:none;border-radius:9px;padding:8px 12px;text-decoration:none;cursor:pointer;font-family:inherit}
+.gaincard{background:var(--forest);color:#fff;border-radius:16px;padding:16px;margin-bottom:16px}
+.lockwrap{position:relative}
+.lockwrap .blur{filter:blur(5px);pointer-events:none;user-select:none}
+.lockwrap .lockmsg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;background:rgba(251,245,240,.6);border-radius:14px;padding:16px}
+.lockwrap .lockmsg .em{font-size:1.7rem}
+details.prof{background:#fff;border:1px solid var(--line);border-radius:14px;padding:2px 14px;margin-bottom:16px}
+details.prof>summary{cursor:pointer;font-weight:800;padding:13px 0;list-style:none;outline:none}
+details.prof>summary::-webkit-details-marker{display:none}
+details.prof>summary::after{content:'⌄';float:right;color:var(--muted);font-weight:700}
+details.prof[open]>summary::after{content:'⌃'}
+.btn.ghost{background:#fff;color:var(--forest);border:1.5px solid var(--line)}
 </style>
 </head>
 <body>
@@ -141,7 +162,7 @@ function pwSubmit(){ return authMode==='login'?pwLogin():pwSignup(); }
 setAuthMode('login');
 const _params=new URLSearchParams(location.search);
 let urlRole=_params.get('role');
-(()=>{ const em=_params.get('email'); if(em){ const f=document.getElementById('email'); if(f) f.value=em; setAuthMode('signup'); } })();
+(()=>{ const em=_params.get('email'); if(em){ const f=document.getElementById('email'); if(f) f.value=em; } if(em || urlRole || _params.get('d')){ setAuthMode('signup'); } })();
 async function logout(){await sb.auth.signOut();location.reload();}
 
 async function getProfile(uid){const {data}=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();return data;}
@@ -265,8 +286,8 @@ async function renderIntervenant(){
     return;
   }
   const esc=s=>(s||'').replace(/"/g,'&quot;');
-  const stB=prof.statut==='valide'?'<span class="badge b-ok">Profil validé</span>':prof.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">En cours de vérification</span>';
-  const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à vérifier</span>';
+  const validated=prof.statut==='valide', refused=prof.statut==='refuse', needCasier=!prof.casier_ok;
+  const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à fournir</span>';
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
   const curStart=new Date(); curStart.setDate(1); curStart.setHours(0,0,0,0);
@@ -276,49 +297,75 @@ async function renderIntervenant(){
     if(!its.every(p=>p.statut==='valide')) return 'en attente de validation';
     return 'validé';
   }
-  let earn=0; missions.forEach(m=>{ if(m.taux_horaire){ earn+=monthTotal(pts,m.id)/60*Number(m.taux_horaire); } });
-  const pendI=missions.find(m=>new Date(m.created_at)<curStart && prevStatusI(m.id)==='à saisir');
-  let h='';
-  if(pendI){
-    h+='<div class="section"><div class="item" style="border:1.5px solid var(--coral);background:#fdeee9">'
-      +'<div class="who">⏰ Pense à saisir tes heures de '+MOIS[PM-1]+'</div>'
-      +'<div class="meta">Pour '+(pendI.famille_prenom||'cette famille')+'. La famille pourra ensuite valider.</div>'
-      +'<a class="go" href="pointage.html?m='+pendI.token+'" style="background:var(--coral)">Saisir mes heures →</a></div></div>';
+  function missionItem(m){
+    const tot=monthTotal(pts,m.id); const ps=prevStatusI(m.id);
+    const accBadge=m.accept==='accepte'?'<span class="badge b-ok">✅ Acceptée</span>':m.accept==='refuse'?'<span class="badge b-wait">Refusée</span>':'<span class="badge b-new">À répondre</span>';
+    const accBtns=(!m.accept&&validated)?'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" onclick="acceptM(\''+m.id+'\',\'accepte\')">J\'accepte</button><button class="btn ghost" style="flex:1" onclick="acceptM(\''+m.id+'\',\'refuse\')">Je ne peux pas</button></div>':'';
+    return '<div class="item"><div class="top"><div class="who">'+(m.famille_prenom||'—')+'</div></div>'
+      +'<div class="badges">'+accBadge+(m.taux_horaire?' <span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+'</div>'
+      +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b> · '+MOIS[PM-1]+' : '+(ps==='validé'?'✅ validé':ps)+'</div>'
+      +accBtns
+      +'<a class="go" href="pointage.html?m='+m.token+'">Pointer mes heures →</a></div>';
   }
-  h+='<div class="section"><h2>Mon profil</h2><div class="item">'
-    +'<div class="who" style="font-weight:700;font-size:1.05rem">'+(prof.nom||'—')+'</div>'
-    +'<div class="badges" style="margin-top:6px">'+stB+casB+'</div>'
-    +'<div style="margin-top:12px">'
+  let earn=0, monthMin=0; missions.forEach(m=>{ const t=monthTotal(pts,m.id); monthMin+=t; if(m.taux_horaire){ earn+=t/60*Number(m.taux_horaire); } });
+  const proposed=missions.filter(m=>!m.accept);
+  const pendI=missions.find(m=>new Date(m.created_at)<curStart && prevStatusI(m.id)==='à saisir');
+
+  let h='';
+  // 1) BANDEAU D'ÉTAT
+  if(refused){ h+='<div class="stat warn"><span class="t">Profil non retenu</span>N\'hésitez pas à contacter Chloé pour en savoir plus.</div>'; }
+  else if(validated){ h+='<div class="stat ok"><span class="t">✅ Profil validé</span>Vous êtes visible auprès des familles et pouvez recevoir des missions.</div>'; }
+  else if(needCasier){ h+='<div class="stat warn"><span class="t">⏳ Profil presque prêt</span>Il manque votre <b>casier (bulletin n°3)</b> pour être proposé·e aux familles. C\'est gratuit et rapide.</div>'; }
+  else { h+='<div class="stat warn"><span class="t">⏳ En attente de validation</span>Votre dossier est complet. Chloé vérifie votre profil — vous serez prévenu·e dès qu\'il est validé.</div>'; }
+
+  // 2) À FAIRE
+  const todo=[];
+  if(needCasier) todo.push('<div class="row"><span class="ic">🛡️</span><span class="lab">Demander mon casier judiciaire (bulletin n°3)</span><a href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener">Faire ma demande</a></div>');
+  if(validated && proposed.length) todo.push('<div class="row"><span class="ic">📩</span><span class="lab">'+proposed.length+' mission'+(proposed.length>1?'s':'')+' à accepter ou refuser</span><button onclick="document.getElementById(\'msec\').scrollIntoView({behavior:\'smooth\'})">Voir</button></div>');
+  if(pendI) todo.push('<div class="row"><span class="ic">⏰</span><span class="lab">Saisir mes heures de '+MOIS[PM-1]+' ('+(pendI.famille_prenom||'famille')+')</span><a href="pointage.html?m='+pendI.token+'">Saisir</a></div>');
+  h+='<h2>À faire</h2>';
+  h+= todo.length ? '<div class="todo">'+todo.join('')+'</div>' : '<div class="empty">Tout est à jour ✅ Rien à faire pour le moment.</div>';
+
+  // 3) GAINS
+  h+='<div class="gaincard"><div class="meta" style="color:#cfe3dc">Mes heures ce mois-ci</div>'
+    +'<div style="font-size:1.7rem;font-weight:800;margin-top:2px">'+fmtMin(monthMin)+'</div>'
+    +(earn>0?'<div style="margin-top:2px;color:#cfe3dc">≈ '+earn.toFixed(2)+' € net estimés</div>':'<div style="margin-top:2px;color:#cfe3dc">Vos gains s\'afficheront ici dès vos premières heures.</div>')
+    +'</div>';
+
+  // 4) MISSIONS (floutées si non validé)
+  h+='<h2 id="msec">Mes missions</h2>';
+  let mHtml = missions.length ? missions.map(missionItem).join('')
+    : '<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';
+  if(validated){ h+=mHtml; }
+  else{
+    const ghost = missions.length ? mHtml
+      : '<div class="item"><div class="who">Mission près de chez vous</div><div class="meta">•••••••• · ••h••</div></div><div class="item"><div class="who">Mission près de chez vous</div><div class="meta">•••••••• · ••h••</div></div>';
+    h+='<div class="lockwrap"><div class="blur">'+ghost+'</div>'
+      +'<div class="lockmsg"><span class="em">🔒</span><div style="font-weight:800;color:var(--forest)">Vos missions se débloquent après validation</div>'
+      +'<div class="meta">'+(needCasier?'Ajoutez votre casier pour être validé·e.':'Chloé valide votre profil très vite.')+'</div></div></div>';
+  }
+
+  // 5) MON PROFIL (repliable)
+  h+='<details class="prof"><summary>Mon profil</summary><div style="padding-bottom:12px">'
     +'<label>Communes où j\'interviens</label><input id="e_zone" value="'+esc(prof.zone)+'">'
     +'<label>Spécialités</label><input id="e_spe" value="'+esc(prof.specialites)+'">'
     +'<label>Années d\'expérience</label><input id="e_exp" type="number" value="'+(prof.experience!=null?prof.experience:'')+'">'
     +'<label>Mes disponibilités</label><input id="e_dispo" value="'+esc(prof.disponibilites)+'">'
-    +'<label>Quelques mots sur moi (vu par les familles)</label><textarea id="e_bio" rows="3" style="width:100%;font-family:inherit;font-size:1rem;padding:11px;border:1.5px solid var(--line);border-radius:11px" placeholder="Ex. Auxiliaire de vie depuis 8 ans, douce et patiente, j\'aime accompagner au quotidien…">'+esc(prof.bio)+'</textarea>'
+    +'<label>Quelques mots sur moi (vu par les familles)</label><textarea id="e_bio" rows="3" style="width:100%;font-family:inherit;font-size:1rem;padding:11px;border:1.5px solid var(--line);border-radius:11px" placeholder="Ex. Auxiliaire de vie depuis 8 ans, douce et patiente…">'+esc(prof.bio)+'</textarea>'
     +'<button class="btn" style="margin-top:4px" onclick="saveInterv()">Enregistrer</button>'
     +'<div class="msg" id="e_msg"></div>'
-    +'</div></div></div>';
-  if(!prof.casier_ok){
-    h+='<div class="section"><div class="item" style="background:#fff8f3;border:1.5px solid var(--coral-tint,#f3d9cd)">'
-      +'<div class="who">🛡️ Obtiens ton casier (bulletin n°3)</div>'
-      +'<div class="meta" style="margin-top:4px">C\'est <b>gratuit</b> et indispensable pour être validé·e. En ligne, la réponse arrive souvent en moins d\'une heure si tu es né·e en France.</div>'
-      +'<a class="go" href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener" style="background:var(--forest)">Faire ma demande sur le site officiel →</a></div></div>';
-  }
-  if(earn>0){
-    h+='<div class="section"><div class="item" style="background:var(--forest);color:#fff;border:none">'
-      +'<div class="meta" style="color:#cfe3dc">Ce que tu gagnes ce mois-ci (estimation)</div>'
-      +'<div style="font-size:1.6rem;font-weight:800;margin-top:2px">'+earn.toFixed(2)+' € net</div></div></div>';
-  }
-  h+='<div class="section"><h2>Mes missions</h2>';
-  if(!missions.length){h+='<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';}
-  else{h+=missions.map(m=>{const tot=monthTotal(pts,m.id);const ps=prevStatusI(m.id);
-    const accBadge=m.accept==='accepte'?'<span class="badge b-ok">✅ Acceptée</span>':m.accept==='refuse'?'<span class="badge b-wait">Refusée</span>':'';
-    const accBtns=!m.accept?'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" onclick="acceptM(\''+m.id+'\',\'accepte\')">J\'accepte</button><button class="btn ghost" style="flex:1" onclick="acceptM(\''+m.id+'\',\'refuse\')">Je ne peux pas</button></div>':'';
-    return '<div class="item"><div class="top"><div class="who">'+(m.famille_prenom||'—')+'</div></div>'
-      +(accBadge?'<div class="badges">'+accBadge+'</div>':'')
-      +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b> · '+MOIS[PM-1]+' : '+(ps==='validé'?'✅ validé':ps)+'</div>'
-      +accBtns
-      +'<a class="go" href="pointage.html?m='+m.token+'">Pointer mes heures →</a></div>';}).join('');}
-  h+='</div>';
+    +'</div></details>';
+
+  // 6) MES PAPIERS
+  h+='<h2>Mes papiers</h2>';
+  h+='<div class="item"><div class="who">🛡️ Casier judiciaire (bulletin n°3)</div>'
+    +'<div class="badges" style="margin-top:6px">'+casB+'</div>'
+    +(needCasier
+      ? '<div class="meta" style="margin-top:6px">Gratuit, souvent en moins d\'une heure en ligne si vous êtes né·e en France.</div><a class="go" href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener" style="background:var(--forest)">Faire ma demande →</a>'
+      : '<div class="meta" style="margin-top:6px">Casier vérifié ✅ Rien à faire.</div>')
+    +'</div>';
+  h+='<div class="item"><div class="who">🧾 Mes déclarations</div><div class="meta" style="margin-top:6px">Une fois vos heures validées par la famille, vous déclarez en un clic depuis le récap de pointage (CESU / Pajemploi). Le lien apparaît sur chaque mission.</div></div>';
+
   document.getElementById('body').innerHTML=h;
 }
 async function saveInterv(){
