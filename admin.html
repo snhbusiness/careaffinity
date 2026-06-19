@@ -366,11 +366,9 @@ function renderMissions(box,info){
         +'<div class="top"><div class="who">'+(m.famille_prenom||'—')+' · '+(m.intervenant_nom||'—')+'</div></div>'
         +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+(m.intervenant_user_id?'<span class="badge b-ok">🧑 Compte intervenant lié</span>':'')+(m.accept==='accepte'?'<span class="badge b-ok">✅ Intervenant a accepté</span>':m.accept==='refuse'?'<span class="badge b-urg">⚠️ Intervenant a refusé</span>':'')+'</div>'
         +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
-        +planBlock(m)
         +'<div class="mlink"><span>'+link+'</span><button onclick="copyLink(\''+link+'\')">Copier</button></div>'
         +(m.famille_user_id?'':'<div class="mlink"><input id="fe_'+m.id+'" type="email" placeholder="email du compte famille" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkFam(\''+m.id+'\')">Lier</button></div>')
         +(m.intervenant_user_id?'':'<div class="mlink"><input id="ie_'+m.id+'" type="email" placeholder="email du compte intervenant" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkInterv(\''+m.id+'\')">Lier</button></div>')
-        +'<div class="actions"><button class="act green" onclick="validateMonthAdmin(\''+m.id+'\')">Valider le mois</button></div>'
         +'</div>';
     }).join('');
   }
