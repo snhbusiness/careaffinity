@@ -68,6 +68,15 @@ details.prof>summary::-webkit-details-marker{display:none}
 details.prof>summary::after{content:'⌄';float:right;color:var(--muted);font-weight:700}
 details.prof[open]>summary::after{content:'⌃'}
 .btn.ghost{background:#fff;color:var(--forest);border:1.5px solid var(--line)}
+.steps{display:flex;margin:0 0 16px}
+.steps .s{flex:1;text-align:center;font-size:.64rem;color:var(--muted);position:relative;line-height:1.2}
+.steps .s .dot{width:15px;height:15px;border-radius:50%;background:#fff;border:2px solid var(--line);margin:0 auto 5px;position:relative;z-index:1}
+.steps .s::before{content:'';position:absolute;top:7px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.steps .s:first-child::before{display:none}
+.steps .s.done .dot,.steps .s.done::before{background:var(--forest);border-color:var(--forest)}
+.steps .s.cur .dot{background:var(--coral);border-color:var(--coral)}
+.steps .s.cur{color:var(--coral);font-weight:800}
+.steps .s.done{color:var(--forest)}
 </style>
 </head>
 <body>
@@ -225,51 +234,86 @@ async function renderFamille(){
     if(!decls.find(d=>d.mission_id===mid&&d.annee===PY&&d.mois===PM)) return 'à déclarer';
     return 'déclaré';
   }
+  const lastD=demandes[0]||null;
+  const accepted=missions.find(m=>m.accept==='accepte');
+  let step=0;
+  if(demandes.length) step=1;
+  if(missions.length) step=2;
+  if(accepted) step=3;
+
   let h='';
+  // 1) BANDEAU D'ÉTAT
+  if(!demandes.length){
+    h+='<div class="stat warn"><span class="t">Bienvenue 👋</span>Vous n\'avez pas encore de demande. Dites-nous de quoi vous avez besoin, Chloé s\'occupe du reste.</div>'
+      +'<a class="go" href="index.html" style="background:var(--coral);margin-bottom:8px">Faire une demande →</a>';
+  } else if(step>=3){
+    h+='<div class="stat ok"><span class="t">✅ Vous êtes accompagné·e</span>'+(accepted.intervenant_nom||'Votre intervenant')+' vous accompagne. Retrouvez le suivi des heures ci-dessous.</div>';
+  } else if(step===2){
+    h+='<div class="stat ok"><span class="t">🟢 Chloé vous a trouvé quelqu\'un</span>La mise en relation est en cours. Chloé vous met en contact très vite.</div>';
+  } else {
+    h+='<div class="stat warn"><span class="t">🟠 Demande bien reçue</span>Chloé vous rappelle aujourd\'hui. <span id="famCount">Recherche des intervenant·es qui correspondent…</span></div>';
+  }
+
+  // 2) FRISE DE SUIVI
+  if(demandes.length){
+    const labels=['Demande envoyée','Chloé cherche','Intervenant proposé','C\'est parti'];
+    h+='<div class="steps">'+labels.map((l,i)=>'<div class="s '+(i<step?'done':'')+(i===step?'cur':'')+'"><div class="dot"></div>'+l+'</div>').join('')+'</div>';
+  }
+
+  // 3) À FAIRE (valider les heures)
   const pend=missions.find(m=>{const s=prevStatus(m.id);return s==='à valider'||s==='à déclarer';});
   if(pend){const s=prevStatus(pend.id);
-    h+='<div class="section"><div class="item" style="border:1.5px solid var(--coral);background:#fdeee9">'
-      +'<div class="who">⏰ '+MOIS[PM-1]+' : heures '+s+'</div>'
-      +'<div class="meta">Pour '+(pend.intervenant_nom||'votre intervenant')+'. Quelques secondes suffisent.</div>'
-      +'<a class="go" href="pointage.html?m='+pend.token+'" style="background:var(--coral)">'+(s==='à valider'?'Valider les heures →':'Déclarer en 2 min →')+'</a></div></div>';
+    h+='<h2>À faire</h2><div class="todo"><div class="row"><span class="ic">⏰</span><span class="lab">'+MOIS[PM-1]+' : heures '+s+' pour '+(pend.intervenant_nom||'votre intervenant')+'</span>'
+      +'<a href="pointage.html?m='+pend.token+'">'+(s==='à valider'?'Valider':'Déclarer')+'</a></div></div>';
   }
-  h+='<div class="section"><h2>Ma demande</h2>';
-  if(!demandes.length){h+='<div class="empty">Aucune demande associée à votre compte pour l\'instant.</div>';}
-  else{h+=demandes.map(d=>{
-    const st=d.statut==='traitee'?'<span class="badge b-ok">Traitée</span>':d.statut==='en_cours'?'<span class="badge b-wait">En cours</span>':d.statut==='rappelee'?'<span class="badge b-ok">Rappelée</span>':'<span class="badge b-new">Reçue</span>';
-    return '<div class="item"><div class="badges" style="margin-bottom:6px"><span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+st+'</div><div class="meta">📍 '+(d.commune||'-')+'</div></div>';
-  }).join('');}
-  h+='</div><div class="section"><h2>Mes intervenants</h2>';
-  if(!missions.length){h+='<div class="empty">Dès que Chloé vous a proposé un intervenant, il apparaîtra ici avec le suivi des heures.</div>';}
-  else{h+=missions.map(m=>{
-    const tot=monthTotal(pts,m.id);
-    const montant=m.taux_horaire?(tot/60*Number(m.taux_horaire)).toFixed(2)+' €':'';
-    const ps=prevStatus(m.id);
-    const psBadge=ps?(' · '+MOIS[PM-1]+' : '+(ps==='déclaré'?'✅ déclaré':ps)):'';
-    return '<div class="item"><div class="top"><div class="who">'+(m.intervenant_nom||'—')+'</div></div>'
-      +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span></div>'
-      +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+psBadge+'</div>'
-      +'<a class="go" href="pointage.html?m='+m.token+'">Voir / valider les heures →</a></div>';
-  }).join('');}
-  h+='</div>';
-  if(demandes.length){ h+='<div class="section"><h2>✨ Intervenants proposés</h2><div id="famMatch"><div class="loading">Recherche en cours…</div></div></div>'; }
+
+  // 4) MON INTERVENANT / MES MISSIONS
+  h+='<h2>Mon accompagnement</h2>';
+  if(!missions.length){
+    h+='<div class="empty">Dès que Chloé vous propose un intervenant, il apparaîtra ici avec le suivi des heures.</div>';
+  } else {
+    h+=missions.map(m=>{
+      const tot=monthTotal(pts,m.id);
+      const montant=m.taux_horaire?(tot/60*Number(m.taux_horaire)).toFixed(2)+' €':'';
+      const ps=prevStatus(m.id);
+      const psBadge=ps?(' · '+MOIS[PM-1]+' : '+(ps==='déclaré'?'✅ déclaré':ps)):'';
+      return '<div class="item"><div class="top"><div class="who">'+(m.intervenant_nom||'—')+'</div></div>'
+        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.accept==='accepte'?'<span class="badge b-ok">✅ Confirmé</span>':'')+'</div>'
+        +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+psBadge+'</div>'
+        +'<a class="go" href="pointage.html?m='+m.token+'">Voir / valider les heures →</a></div>';
+    }).join('');
+  }
+
+  // 5) MA DEMANDE
+  h+='<h2>Ma demande</h2>';
+  if(lastD){
+    const st=lastD.statut==='traitee'?'<span class="badge b-ok">Traitée</span>':lastD.statut==='en_cours'?'<span class="badge b-wait">En cours</span>':'<span class="badge b-new">Reçue</span>';
+    h+='<div class="item"><div class="badges" style="margin-bottom:6px"><span class="badge '+(lastD.type==='enfants'?'b-enfants':'b-proche')+'">'+(lastD.type==='enfants'?'Garde d\'enfants':'Aide à un proche')+'</span>'+st+'</div>'
+      +'<div class="meta">📍 '+(lastD.commune||'-')+'</div></div>';
+  }
+  h+='<a class="go ghost" href="index.html" style="background:#fff;color:var(--forest);border:1.5px solid var(--line);margin-top:4px">Faire une autre demande →</a>';
+
+  // 6) MES DÉMARCHES
+  if(lastD){
+    const enfants=lastD.type==='enfants';
+    h+='<h2>Mes démarches</h2><div class="item"><div class="who">'+(enfants?'🍼 Pajemploi':'🏠 CESU')+'</div>'
+      +'<div class="meta" style="margin-top:6px">'
+      +(enfants
+        ? 'Vous employez votre intervenant·e via <b>Pajemploi</b>. Chaque mois, vous déclarez ses heures (quelques clics). Selon votre situation, vous pouvez bénéficier du <b>CMG</b> et d\'un <b>crédit d\'impôt</b>.'
+        : 'Vous employez votre intervenant·e via le <b>CESU</b> (URSSAF). Chaque mois, vous déclarez ses heures (quelques clics) et vous récupérez <b>50% en crédit d\'impôt</b>.')
+      +'</div><div class="meta" style="margin-top:6px">Pas d\'inquiétude : au moment de valider les heures, on vous guide pas à pas.</div></div>';
+  }
+
   document.getElementById('body').innerHTML=h;
-  if(demandes.length) loadFamMatch(demandes[0].id);
+  if(step===1 && lastD) loadFamCount(lastD.id, lastD);
 }
-async function loadFamMatch(demandeId){
-  const box=document.getElementById('famMatch'); if(!box)return;
-  try{
-    const {data,error}=await sb.functions.invoke('match',{body:{demande_id:demandeId}});
-    if(error)throw error;
-    const ms=(data&&data.matches)||[];
-    if(!ms.length){box.innerHTML='<div class="empty">Nous cherchons la bonne personne pour vous. Chloé vous recontacte très vite.</div>';return;}
-    box.innerHTML=ms.map(x=>'<div class="item"><div class="who">'+(x.nom||'—')+' <span class="badge b-ok">'+(x.score||0)+'% adapté</span></div><div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div>'+(x.raison?'<div style="font-size:.9rem;margin-top:4px">'+x.raison+'</div>':'')+(x.id?'<button class="go" style="background:var(--coral)" onclick="interesse(\''+demandeId+'\',\''+x.id+'\',this)">💛 Je suis intéressé·e</button>':'')+'</div>').join('')+'<div class="empty" style="margin-top:8px">Indiquez qui vous intéresse : Chloé organise la mise en relation, vous n\'avez rien d\'autre à faire.</div>';
-  }catch(e){box.innerHTML='<div class="empty">Recherche en cours… Chloé vous recontacte très vite.</div>';}
-}
-async function interesse(d,i,btn){
-  btn.disabled=true; const old=btn.textContent; btn.textContent='Envoi…';
-  try{ const {error}=await sb.rpc('signaler_interet',{p_demande:d,p_intervenant:i}); if(error)throw error; btn.textContent='💛 Intérêt transmis ✓'; btn.style.background='var(--forest)'; }
-  catch(e){ btn.disabled=false; btn.textContent=old; alert('Une erreur est survenue, réessayez.'); }
+async function loadFamCount(demandeId, d){
+  const el=document.getElementById('famCount'); if(!el)return;
+  let n=null;
+  try{ const {data,error}=await sb.functions.invoke('match',{body:{demande_id:demandeId}}); if(!error && data && Array.isArray(data.matches)) n=data.matches.length; }catch(e){}
+  if(n===null){ try{ const {data}=await sb.rpc('count_matchs',{p_commune:(d&&d.commune)||'',p_type:(d&&d.type)||'proche'}); if(typeof data==='number') n=data; }catch(e){} }
+  if(n && n>0){ el.innerHTML='<b>'+n+' intervenant·e'+(n>1?'s':'')+'</b> de notre réseau correspond'+(n>1?'ent':'')+' à votre besoin — Chloé les contacte dès maintenant.'; }
+  else { el.textContent='Chloé recherche la bonne personne pour vous et revient vers vous très vite.'; }
 }
 
 async function renderIntervenant(){
