@@ -136,11 +136,27 @@ details.prof[open]>summary::after{content:'⌃'}
   details.prof{border:none;border-radius:18px;box-shadow:0 12px 28px -24px rgba(15,70,63,.55)}
 
   .bottomnav{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:calc(100% - 28px);max-width:532px;background:#fff;border-radius:24px;box-shadow:0 16px 42px -14px rgba(15,70,63,.45);display:flex;align-items:center;justify-content:space-around;padding:9px 6px;z-index:60}
-  .navitem{flex:1;background:none;border:none;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:.66rem;font-weight:700;cursor:pointer;padding:4px 0}
-  .navitem .ic{font-size:1.3rem;line-height:1}
-  .navfab{flex:none;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--coral) 0%,#F4A98F 100%);color:#fff;border:none;font-size:2rem;font-weight:300;line-height:1;box-shadow:0 12px 26px -8px rgba(224,115,90,.7);margin-top:-26px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .navfab span{font-size:.6rem;font-weight:700;position:absolute;margin-top:62px}
-  body.hasnav .wrap{padding-bottom:115px}
+  .navitem{flex:1;background:none;border:none;display:flex;align-items:center;justify-content:center;color:#7C8E8A;cursor:pointer;padding:9px 0}
+  .navitem svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .navitem:active{color:var(--forest)}
+  .navfab{flex:none;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--coral) 0%,#F4A98F 100%);border:none;box-shadow:0 12px 26px -8px rgba(224,115,90,.7);margin-top:-26px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .navfab svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  body.hasnav .wrap{padding-bottom:108px}
+
+  #app h2{font-size:1.36rem;color:var(--forest);font-weight:800;letter-spacing:-.02em;margin:36px 0 15px;line-height:1.2}
+  .higreet{margin-top:26px;margin-bottom:18px}
+  #app .wrap{padding-left:20px;padding-right:20px}
+  .item{margin-bottom:14px;padding:17px}
+  .gaincard{margin:6px 0 4px;padding:20px}
+  .stat{margin-bottom:18px}
+  .todo{margin-bottom:14px}
+  .hint{margin-bottom:16px;padding:16px 18px}
+  .empty{margin-bottom:6px;padding:22px 18px}
+  .lead{margin:-4px 0 16px}
+  .addbox{margin-bottom:8px;padding:17px}
+  .dispo-list{margin-bottom:14px}
+  .dispo-list .cre{margin-bottom:8px;padding:13px 15px}
+  details.prof{margin-bottom:14px}
 
   .lead{font-size:.9rem;color:var(--muted);margin:-2px 0 13px;line-height:1.5}
   .hint{font-size:.92rem;color:var(--forest);background:var(--mint);border-radius:15px;padding:14px 16px;margin-bottom:11px;text-align:center;line-height:1.45}
@@ -207,15 +223,25 @@ window.navGo=(label)=>{
   const t=hs.find(x=>x.textContent.trim().replace(/^[^\p{L}]+/u,'').toLowerCase().startsWith(label.toLowerCase()));
   if(t){const y=t.getBoundingClientRect().top+window.scrollY-12;window.scrollTo({top:y,behavior:'smooth'});}
 };
+const NAVIC={
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  cal:'<rect x="3" y="4.5" width="18" height="16.5" rx="2.4"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.2v5l3.2 2"/>',
+  doc:'<path d="M6 2.5h7l5 5v14H6z"/><path d="M13 2.5v5h5"/>',
+  check:'<path d="M20 6.5L9.2 17.3 4 12.1"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.1"/><circle cx="4.5" cy="12" r="1.1"/><circle cx="4.5" cy="18" r="1.1"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>'
+};
+function navIcon(k){return '<svg viewBox="0 0 24 24">'+NAVIC[k]+'</svg>';}
 function buildNav(role){
   const nav=document.getElementById('bnav'); if(!nav)return;
   document.body.classList.add('hasnav');
   const items = role==='intervenant'
-    ? [['🏠','Accueil','__top'],['🗓️','Planning','Mon planning'],['FAB','Pointer','Pointer'],['🕘','Dispos','Mes disponibilités'],['📄','Papiers','Mes papiers']]
-    : [['🏠','Accueil','__top'],['🗓️','Planning','Le planning'],['FAB','Demander','Organiser'],['✅','À valider','Interventions'],['📋','Démarches','Mes démarches']];
-  nav.innerHTML=items.map(it=> it[0]==='FAB'
-    ? '<button class="navfab" onclick="navGo(\''+it[2]+'\')">+<span>'+it[1]+'</span></button>'
-    : '<button class="navitem" onclick="navGo(\''+it[2]+'\')"><span class="ic">'+it[0]+'</span>'+it[1]+'</button>'
+    ? [['home','__top'],['cal','Mon planning'],['plus','Pointer'],['clock','Mes disponibilités'],['doc','Mes papiers']]
+    : [['home','__top'],['cal','Le planning'],['plus','Organiser'],['check','Interventions'],['list','Mes démarches']];
+  nav.innerHTML=items.map(it=> it[0]==='plus'
+    ? '<button class="navfab" aria-label="Action" onclick="navGo(\''+it[1]+'\')">'+navIcon('plus')+'</button>'
+    : '<button class="navitem" aria-label="'+it[1]+'" onclick="navGo(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
   ).join('');
   nav.style.display='flex';
 }
@@ -541,7 +567,7 @@ async function renderIntervenant(){
     +'</div>';
 
   // 3bis) MES DISPONIBILITÉS (l'intervenant déclare quand il peut)
-  h+='<h2>🗓️ Mes disponibilités</h2>';
+  h+='<h2>Mes disponibilités</h2>';
   h+='<p class="lead">Indiquez quand vous êtes disponible. Les familles s\'en servent pour vous proposer des créneaux.</p>';
   const dsorted=dispos.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut));
   if(dsorted.length){ h+='<div class="dispo-list">'+dsorted.map(d=>'<div class="cre"><span><b>'+JOURS[d.jour]+'</b> · '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join('')+'</div>'; }
@@ -556,7 +582,7 @@ async function renderIntervenant(){
   if(validated){
     const toConfirm=creneaux.filter(c=>c.statut==='propose').sort((a,b)=>(a.jour||0)-(b.jour||0));
     if(toConfirm.length){
-      h+='<h2>✅ Créneaux à confirmer</h2>';
+      h+='<h2>Créneaux à confirmer</h2>';
       h+=toConfirm.map(c=>{const m=missions.find(x=>x.id===c.mission_id);
         return '<div class="item acc-amber"><div class="who">'+((m&&m.famille_prenom)||'Une famille')+' souhaite :</div>'
           +'<div class="meta" style="margin-top:2px">'+creLabel(c)+'</div>'
@@ -565,11 +591,11 @@ async function renderIntervenant(){
     }
     // MON PLANNING (créneaux confirmés)
     const conf=creneaux.filter(c=>c.statut==='confirme').map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('chez '+(m.famille_prenom||'famille')):''});});
-    h+='<h2>📅 Mon planning</h2>'+planSemaine(conf,true,'Pas encore de créneau confirmé. Vos disponibilités permettent aux familles de vous en proposer — vous les confirmez ici.');
+    h+='<h2>Mon planning</h2>'+planSemaine(conf,true,'Pas encore de créneau confirmé. Vos disponibilités permettent aux familles de vous en proposer — vous les confirmez ici.');
 
     // POINTER MES HEURES (à chaque fin d'intervention)
     if(missions.length){
-      h+='<h2>⏱️ Pointer mes heures</h2>';
+      h+='<h2>Pointer mes heures</h2>';
       h+='<div style="font-size:.86rem;color:var(--muted);margin-bottom:8px">À la fin de chaque intervention, enregistrez vos heures réelles. La famille les valide.</div>';
       const tJ=(new Date().getDay()===0?7:new Date().getDay());
       const todayCre=conf.filter(c=>(!c.date&&c.jour===tJ)||(c.date===todayISO()));
@@ -586,7 +612,7 @@ async function renderIntervenant(){
   }
 
   // 4) MISSIONS (floutées si non validé)
-  h+='<h2 id="msec">💼 Mes missions</h2>';
+  h+='<h2 id="msec">Mes missions</h2>';
   let mHtml = missions.length ? missions.map(missionItem).join('')
     : '<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';
   if(validated){ h+=mHtml; }
@@ -609,7 +635,7 @@ async function renderIntervenant(){
     +'</div></details>';
 
   // 6) MES PAPIERS
-  h+='<h2>📄 Mes papiers</h2>';
+  h+='<h2>Mes papiers</h2>';
   h+='<div class="item"><div class="who">🛡️ Casier judiciaire (bulletin n°3)</div>'
     +'<div class="badges" style="margin-top:6px">'+casB+'</div>'
     +(needCasier
