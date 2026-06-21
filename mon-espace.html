@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mon espace · Chloé Domicile</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Mulish:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{--cream:#FBF5F0;--card:#fff;--line:#EADBD0;--coral:#D97A5E;--coral-deep:#C25A45;--coral-tint:#F7E2D8;--forest:#21433B;--ink:#2B2420;--muted:#6E635C;--ok:#2E7D5B;--ok-tint:#DCEFE5;--warn:#B5742A;--warn-tint:#F7E7CF}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -89,6 +89,52 @@ details.prof[open]>summary::after{content:'⌃'}
 .dispo-add input{width:96px}
 .dispo-add button{background:var(--forest);color:#fff;border:none;border-radius:10px;padding:9px 13px;font-family:inherit;font-weight:700;cursor:pointer}
 </style>
+<style>
+  /* ===== Refonte design (teal / mint / corail, typo ronde) ===== */
+  :root{
+    --cream:#EEF5F3; --card:#fff; --line:#E4EEEB;
+    --coral:#F2937B; --coral-deep:#E0735A; --coral-tint:#FCE7E0;
+    --forest:#0E6E63; --teal2:#2BA597; --mint:#DCEFEA;
+    --ink:#173A35; --muted:#6E807C;
+    --ok:#1FA971; --ok-tint:#D9F0E5; --warn:#C98A1E; --warn-tint:#FBEBD0;
+    --amber:#F2B600; --red:#E8506B; --green:#34C77B;
+  }
+  body{font-family:'Poppins',system-ui,sans-serif}
+  h1,h2,h3{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.015em}
+  .brand{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.01em}
+  .section h2{font-size:1.2rem;color:var(--forest);font-weight:800}
+
+  #app header{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);padding:16px 0 30px;border-radius:0 0 28px 28px}
+  #app header .brand{color:#fff;font-size:1.25rem}
+  header .out{background:rgba(255,255,255,.2);border-radius:11px}
+
+  .higreet{display:flex;align-items:center;gap:13px;margin:22px 0 8px}
+  .ava{flex:none;width:48px;height:48px;border-radius:50%;background:var(--mint);color:var(--forest);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .hi{font-family:'Poppins',sans-serif;font-size:1.55rem;font-weight:800;color:var(--forest);margin:0;line-height:1.12}
+
+  .item{border:none;border-radius:20px;box-shadow:0 14px 32px -24px rgba(15,70,63,.55);padding:16px}
+  .item.acc-amber{border-left:5px solid var(--amber)}
+  .item.acc-red{border-left:5px solid var(--red)}
+  .item.acc-green{border-left:5px solid var(--green)}
+  .box{border:none;border-radius:24px;box-shadow:0 20px 46px -28px rgba(15,70,63,.5)}
+  .btn{border-radius:14px;font-weight:700}
+  .go{border-radius:13px;font-weight:700;background:var(--forest)}
+  .empty{border-radius:18px;border-color:var(--line)}
+
+  .gaincard{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);border-radius:24px;box-shadow:0 18px 36px -22px rgba(14,110,99,.7)}
+  .stat.ok{background:var(--mint);border-color:#bfe0d6;color:var(--forest)}
+  .todo{border:none;border-radius:18px;box-shadow:0 12px 28px -24px rgba(15,70,63,.55)}
+  .todo .row a,.todo .row button{border-radius:12px}
+
+  .cre,.slot{border:none;border-radius:14px;box-shadow:0 10px 24px -22px rgba(15,70,63,.6)}
+  .day-n{color:var(--forest);font-weight:800}
+  .dispo-add select,.dispo-add input{border-radius:12px;border-color:var(--line)}
+  .dispo-add button{background:var(--forest);border-radius:12px}
+  input:focus{border-color:var(--forest)}
+  .b-proche{background:var(--mint);color:var(--forest)}
+
+  details.prof{border:none;border-radius:18px;box-shadow:0 12px 28px -24px rgba(15,70,63,.55)}
+</style>
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -114,7 +160,7 @@ details.prof[open]>summary::after{content:'⌃'}
 <div id="app">
   <header><div class="wrap"><a href="index.html" style="text-decoration:none"><span class="brand">Chloé Domicile</span></a><button class="out" onclick="logout()">Déconnexion</button></div></header>
   <div class="wrap">
-    <div class="hi" id="hi">Bonjour 👋</div>
+    <div class="higreet"><span class="ava" id="ava">··</span><div class="hi" id="hi">Bonjour 👋</div></div>
     <div id="body"><div class="loading">Chargement…</div></div>
   </div>
 </div>
@@ -134,6 +180,7 @@ function minBetween(deb,fin){const a=deb.split(':').map(Number),b=fin.split(':')
 function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function ptStatut(s){return s==='valide'?'<span class="badge b-ok">validée</span>':s==='conteste'?'<span class="badge b-no">contestée</span>':'<span class="badge b-wait">à valider</span>';}
 function ptLine(p,withName){const d=new Date(p.date+'T00:00');return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · '+(p.debut||'')+(p.fin?'–'+p.fin:'')+' ('+Math.round(p.minutes/6)/10+'h)';}
+function setHello(txt,name){const hi=document.getElementById('hi');if(hi)hi.textContent=txt;const a=document.getElementById('ava');if(a)a.textContent=(name&&name.trim()?name.trim().slice(0,2):'··').toUpperCase();}
 function planSemaine(creneaux, withName){
   if(!creneaux||!creneaux.length) return '<div class="empty">Aucun créneau pour l\'instant. Chloé l\'organise avec vous.</div>';
   const byDay={};
@@ -217,7 +264,7 @@ async function enter(){
   route(prof,user);
 }
 function chooseRole(){
-  document.getElementById('hi').textContent='Bienvenue 👋';
+  setHello('Bienvenue 👋', (prof&&prof.prenom)||'');
   document.getElementById('body').innerHTML=
     '<div class="empty" style="text-align:left">Pour finaliser votre accès, dites-nous qui vous êtes :</div>'
     +'<div style="display:flex;gap:10px;margin-top:14px">'
@@ -234,7 +281,7 @@ async function setRole(role){
   route(prof||{id:user.id,role},user);
 }
 function route(prof,user){
-  document.getElementById('hi').textContent='Bonjour'+(prof.prenom?' '+prof.prenom:'')+' 👋';
+  setHello('Bonjour'+(prof.prenom?' '+prof.prenom:'')+' 👋', prof.prenom||'');
   if(prof.role==='admin'){document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Vous êtes connectée en administratrice.</div><a class="go" href="admin.html" style="margin-top:12px">Ouvrir le cockpit →</a>';return;}
   if(prof.role==='intervenant'){return renderIntervenant();}
   return renderFamille();
@@ -323,7 +370,7 @@ async function renderFamille(){
     h+='<h2>Interventions à valider</h2>';
     h+='<div style="font-size:.86rem;color:var(--muted);margin-bottom:8px">Votre intervenant a pointé ces heures. Validez‑les : vous êtes l\'employeur.</div>';
     h+=toValid.map(p=>{const m=missions.find(x=>x.id===p.mission_id);
-      return '<div class="item"><div class="who">'+ptLine(p)+'</div>'+(m&&m.intervenant_nom?'<div class="meta">'+m.intervenant_nom+'</div>':'')
+      return '<div class="item acc-amber"><div class="who">'+ptLine(p)+'</div>'+(m&&m.intervenant_nom?'<div class="meta">'+m.intervenant_nom+'</div>':'')
         +'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" onclick="validPointage(\''+p.id+'\')">Valider</button><button class="btn ghost" style="flex:1" onclick="contestPointage(\''+p.id+'\')">Contester</button></div></div>';
     }).join('');
   }
@@ -408,6 +455,7 @@ async function renderIntervenant(){
   }
   const esc=s=>(s||'').replace(/"/g,'&quot;');
   const validated=prof.statut==='valide', refused=prof.statut==='refuse', needCasier=!prof.casier_ok;
+  setHello('Bonjour'+(prof.prenom?' '+prof.prenom:(prof.nom?' '+prof.nom:''))+' 👋', prof.prenom||prof.nom||'');
   const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à fournir</span>';
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
@@ -466,7 +514,7 @@ async function renderIntervenant(){
     if(toConfirm.length){
       h+='<h2>Créneaux à confirmer</h2>';
       h+=toConfirm.map(c=>{const m=missions.find(x=>x.id===c.mission_id);
-        return '<div class="item"><div class="who">'+((m&&m.famille_prenom)||'Une famille')+' souhaite :</div>'
+        return '<div class="item acc-amber"><div class="who">'+((m&&m.famille_prenom)||'Une famille')+' souhaite :</div>'
           +'<div class="meta" style="margin-top:2px">'+creLabel(c)+'</div>'
           +'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" onclick="confirmCreneau(\''+c.id+'\')">Confirmer</button><button class="btn ghost" style="flex:1" onclick="refuseCreneau(\''+c.id+'\')">Refuser</button></div></div>';
       }).join('');
