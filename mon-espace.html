@@ -105,6 +105,7 @@ details.prof[open]>summary::after{content:'⌃'}
   .section h2{font-size:1.2rem;color:var(--forest);font-weight:800}
 
   #app header{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);padding:16px 0 22px;border-radius:0 0 28px 28px}
+  #app header .wrap{display:block;padding-bottom:0}
   #app header .brand{color:#fff;font-size:1.25rem}
   header .out{background:rgba(255,255,255,.2);border-radius:11px}
   header .hdr-top{display:flex;align-items:center;justify-content:space-between}
@@ -383,7 +384,7 @@ async function enter(){
   route(prof,user);
 }
 function chooseRole(){
-  setHello('Bienvenue 👋', (prof&&prof.prenom)||'');
+  setHello('Bienvenue 👋', '');
   document.getElementById('body').innerHTML=
     '<div class="empty" style="text-align:left">Pour finaliser votre accès, dites-nous qui vous êtes :</div>'
     +'<div style="display:flex;gap:10px;margin-top:14px">'
