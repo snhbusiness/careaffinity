@@ -142,6 +142,10 @@ details.prof[open]>summary::after{content:'⌃'}
   .navfab{flex:none;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--coral) 0%,#F4A98F 100%);border:none;box-shadow:0 12px 26px -8px rgba(224,115,90,.7);margin-top:-26px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .navfab svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
   body.hasnav .wrap{padding-bottom:108px}
+  .tabpane{display:none}
+  .tabpane.show{display:block}
+  .tabpane>h2:first-child{margin-top:14px}
+  .navitem.on{color:var(--forest)}
 
   #app h2{font-size:1.36rem;color:var(--forest);font-weight:800;letter-spacing:-.02em;margin:36px 0 15px;line-height:1.2}
   .higreet{margin-top:26px;margin-bottom:18px}
@@ -170,6 +174,10 @@ details.prof[open]>summary::after{content:'⌃'}
   .addrow select:focus,.addrow input:focus{outline:none;border-color:var(--forest)}
   .addbtn{width:100%;background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 12px 26px -14px rgba(14,110,99,.8)}
   .addbtn:active{transform:scale(.99)}
+  .fbox{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line);border-radius:13px;background:#fff;padding:0 12px;height:52px;transition:border-color .15s}
+  .fbox:focus-within{border-color:var(--forest)}
+  .fbox svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--forest);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+  .addrow .fbox select,.addrow .fbox input{border:none!important;background:none;padding:0;height:auto;width:100%;font-size:1.02rem;color:var(--ink);outline:none}
 </style>
 </head>
 <body>
@@ -233,16 +241,29 @@ const NAVIC={
   plus:'<path d="M12 5v14M5 12h14"/>'
 };
 function navIcon(k){return '<svg viewBox="0 0 24 24">'+NAVIC[k]+'</svg>';}
+let curTab='accueil';
+window.switchTab=(key)=>{
+  curTab=key;
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.toggle('show',p.dataset.tab===key));
+  document.querySelectorAll('#bnav .navitem').forEach(b=>b.classList.toggle('on',b.dataset.tab===key));
+  window.scrollTo({top:0,behavior:'auto'});
+};
 function buildNav(role){
   const nav=document.getElementById('bnav'); if(!nav)return;
   document.body.classList.add('hasnav');
-  const items = role==='intervenant'
-    ? [['home','__top'],['cal','Mon planning'],['plus','Pointer'],['clock','Mes disponibilités'],['doc','Mes papiers']]
-    : [['home','__top'],['cal','Le planning'],['plus','Organiser'],['check','Interventions'],['list','Mes démarches']];
-  nav.innerHTML=items.map(it=> it[0]==='plus'
-    ? '<button class="navfab" aria-label="Action" onclick="navGo(\''+it[1]+'\')">'+navIcon('plus')+'</button>'
-    : '<button class="navitem" aria-label="'+it[1]+'" onclick="navGo(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
-  ).join('');
+  if(role==='intervenant'){
+    const items=[['home','accueil'],['cal','planning'],['plus','pointer'],['clock','dispos'],['doc','papiers']];
+    nav.innerHTML=items.map(it=> it[0]==='plus'
+      ? '<button class="navfab" aria-label="Pointer" onclick="switchTab(\'pointer\')">'+navIcon('plus')+'</button>'
+      : '<button class="navitem" data-tab="'+it[1]+'" aria-label="'+it[1]+'" onclick="switchTab(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
+    ).join('');
+  } else {
+    const items=[['home','__top'],['cal','Le planning'],['plus','Organiser'],['check','Interventions'],['list','Mes démarches']];
+    nav.innerHTML=items.map(it=> it[0]==='plus'
+      ? '<button class="navfab" aria-label="Action" onclick="navGo(\''+it[1]+'\')">'+navIcon('plus')+'</button>'
+      : '<button class="navitem" aria-label="'+it[1]+'" onclick="navGo(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
+    ).join('');
+  }
   nav.style.display='flex';
 }
 function planSemaine(creneaux, withName, emptyMsg){
@@ -555,7 +576,7 @@ async function renderIntervenant(){
   // 2) À FAIRE
   const todo=[];
   if(needCasier) todo.push('<div class="row"><span class="ic">🛡️</span><span class="lab">Demander mon casier judiciaire (bulletin n°3)</span><a href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener">Faire ma demande</a></div>');
-  if(validated && proposed.length) todo.push('<div class="row"><span class="ic">📩</span><span class="lab">'+proposed.length+' mission'+(proposed.length>1?'s':'')+' à accepter ou refuser</span><button onclick="document.getElementById(\'msec\').scrollIntoView({behavior:\'smooth\'})">Voir</button></div>');
+  if(validated && proposed.length) todo.push('<div class="row"><span class="ic">📩</span><span class="lab">'+proposed.length+' mission'+(proposed.length>1?'s':'')+' à accepter ou refuser</span><button onclick="switchTab(\'papiers\')">Voir</button></div>');
   if(pendI) todo.push('<div class="row"><span class="ic">⏰</span><span class="lab">Saisir mes heures de '+MOIS[PM-1]+' ('+(pendI.famille_prenom||'famille')+')</span><a href="pointage.html?m='+pendI.token+'">Saisir</a></div>');
   h+='<h2>À faire</h2>';
   h+= todo.length ? '<div class="todo">'+todo.join('')+'</div>' : '<div class="empty">Tout est à jour ✅ Rien à faire pour le moment.</div>';
@@ -567,19 +588,21 @@ async function renderIntervenant(){
     +'</div>';
 
   // 3bis) MES DISPONIBILITÉS (l'intervenant déclare quand il peut)
+  h+='<!--PANE:dispos-->';
   h+='<h2>Mes disponibilités</h2>';
   h+='<p class="lead">Indiquez quand vous êtes disponible. Les familles s\'en servent pour vous proposer des créneaux.</p>';
   const dsorted=dispos.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut));
   if(dsorted.length){ h+='<div class="dispo-list">'+dsorted.map(d=>'<div class="cre"><span><b>'+JOURS[d.jour]+'</b> · '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join('')+'</div>'; }
   else { h+='<div class="hint">Aucune disponibilité pour l\'instant — ajoutez‑en une ci‑dessous 👇</div>'; }
   h+='<div class="addbox"><div class="addrow">'
-    +'<label class="wide">Jour<select id="dj">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select></label>'
-    +'<label>De<input id="dd" type="time" value="09:00"></label>'
-    +'<label>À<input id="df" type="time" value="12:00"></label>'
+    +'<label class="wide">Jour<div class="fbox">'+navIcon('cal')+'<select id="dj">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select></div></label>'
+    +'<label>De<div class="fbox">'+navIcon('clock')+'<input id="dd" type="time" value="09:00"></div></label>'
+    +'<label>À<div class="fbox">'+navIcon('clock')+'<input id="df" type="time" value="12:00"></div></label>'
     +'</div><button class="addbtn" onclick="addDispo()">+ Ajouter ce créneau</button></div>';
 
   // 3ter) CRÉNEAUX À CONFIRMER (proposés par les familles)
   if(validated){
+    h+='<!--PANE:planning-->';
     const toConfirm=creneaux.filter(c=>c.statut==='propose').sort((a,b)=>(a.jour||0)-(b.jour||0));
     if(toConfirm.length){
       h+='<h2>Créneaux à confirmer</h2>';
@@ -595,6 +618,7 @@ async function renderIntervenant(){
 
     // POINTER MES HEURES (à chaque fin d'intervention)
     if(missions.length){
+      h+='<!--PANE:pointer-->';
       h+='<h2>Pointer mes heures</h2>';
       h+='<div style="font-size:.86rem;color:var(--muted);margin-bottom:8px">À la fin de chaque intervention, enregistrez vos heures réelles. La famille les valide.</div>';
       const tJ=(new Date().getDay()===0?7:new Date().getDay());
@@ -612,6 +636,7 @@ async function renderIntervenant(){
   }
 
   // 4) MISSIONS (floutées si non validé)
+  h+='<!--PANE:papiers-->';
   h+='<h2 id="msec">Mes missions</h2>';
   let mHtml = missions.length ? missions.map(missionItem).join('')
     : '<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';
@@ -644,8 +669,13 @@ async function renderIntervenant(){
     +'</div>';
   h+='<div class="item"><div class="who">🧾 Mes déclarations</div><div class="meta" style="margin-top:6px">Une fois vos heures validées par la famille, vous déclarez en un clic depuis le récap de pointage (CESU / Pajemploi). Le lien apparaît sur chaque mission.</div></div>';
 
-  document.getElementById('body').innerHTML=h;
+  const parts=h.split(/<!--PANE:(\w+)-->/);
+  const panes={accueil:parts[0]};
+  for(let i=1;i<parts.length;i+=2){ panes[parts[i]]=(panes[parts[i]]||'')+(parts[i+1]||''); }
+  const order=['accueil','planning','pointer','dispos','papiers'];
+  document.getElementById('body').innerHTML=order.map(k=>'<section class="tabpane" data-tab="'+k+'">'+(panes[k]&&panes[k].trim()?panes[k]:'<div class="empty">Rien à afficher ici pour le moment.</div>')+'</section>').join('');
   buildNav('intervenant');
+  switchTab(order.includes(curTab)?curTab:'accueil');
 }
 async function saveInterv(){
   if(!myInterv)return;
