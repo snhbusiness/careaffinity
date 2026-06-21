@@ -186,6 +186,15 @@ details.prof[open]>summary::after{content:'⌃'}
   .fbox:focus-within{border-color:var(--forest)}
   .fbox svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--forest);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
   .addrow .fbox select,.addrow .fbox input{border:none!important;background:none;padding:0;height:auto;width:100%;font-size:1.02rem;color:var(--ink);outline:none}
+  .daystrip{display:flex;gap:7px;margin-bottom:18px}
+  .daypill{flex:1;position:relative;border:none;background:#fff;box-shadow:0 8px 20px -18px rgba(15,70,63,.5);border-radius:14px;padding:14px 0;font-family:inherit;font-weight:800;font-size:1rem;color:var(--muted);cursor:pointer}
+  .daypill.on{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);color:#fff;box-shadow:0 10px 22px -12px rgba(14,110,99,.7)}
+  .daypill .dot{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--coral)}
+  .daypill.on .dot{background:#fff}
+  .daytitle{font-weight:800;color:var(--forest);font-size:1.08rem;margin:2px 0 11px}
+  .addrow2{display:flex;gap:10px;margin-bottom:13px}
+  .addrow2 label{flex:1;display:flex;flex-direction:column;gap:6px;font-size:.72rem;font-weight:800;color:var(--muted)}
+  .addrow2 .fbox input{border:none!important;background:none;padding:0;width:100%;font-size:1.02rem;color:var(--ink);outline:none}
 </style>
 </head>
 <body>
@@ -312,6 +321,8 @@ function planSemaine(creneaux, withName, emptyMsg){
   return h;
 }
 let myInterv=null;
+let myDispos=[];
+let selDay=(new Date().getDay()===0?7:new Date().getDay());
 function setMsg(t,ok){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
 function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
 
@@ -623,17 +634,12 @@ async function renderIntervenant(){
     +'</div>';
 
   // 3bis) MES DISPONIBILITÉS (l'intervenant déclare quand il peut)
+  myDispos=dispos;
   h+='<!--PANE:dispos-->';
   h+='<h2>Mes disponibilités</h2>';
-  h+='<p class="lead">Indiquez quand vous êtes disponible. Les familles s\'en servent pour vous proposer des créneaux.</p>';
-  const dsorted=dispos.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut));
-  if(dsorted.length){ h+='<div class="dispo-list">'+dsorted.map(d=>'<div class="cre"><span><b>'+JOURS[d.jour]+'</b> · '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join('')+'</div>'; }
-  else { h+='<div class="hint">Aucune disponibilité pour l\'instant — ajoutez‑en une ci‑dessous 👇</div>'; }
-  h+='<div class="addbox"><div class="addrow">'
-    +'<label class="wide">Jour<div class="fbox">'+navIcon('cal')+'<select id="dj">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select></div></label>'
-    +'<label>De<div class="fbox">'+navIcon('clock')+'<input id="dd" type="time" value="09:00"></div></label>'
-    +'<label>À<div class="fbox">'+navIcon('clock')+'<input id="df" type="time" value="12:00"></div></label>'
-    +'</div><button class="addbtn" onclick="addDispo()">+ Ajouter ce créneau</button></div>';
+  h+='<p class="lead">Touchez un jour, puis ajoutez vos plages. Les familles s\'en servent pour vous proposer des créneaux.</p>';
+  h+='<div class="daystrip" id="daystrip"></div>';
+  h+='<div id="dayPanel"></div>';
 
   // 3ter) CRÉNEAUX À CONFIRMER (proposés par les familles)
   if(validated){
@@ -711,6 +717,7 @@ async function renderIntervenant(){
   document.getElementById('body').innerHTML=order.map(k=>'<section class="tabpane" data-tab="'+k+'">'+(panes[k]&&panes[k].trim()?panes[k]:'<div class="empty">Rien à afficher ici pour le moment.</div>')+'</section>').join('');
   buildNav('intervenant');
   switchTab(order.includes(curTab)?curTab:'accueil');
+  paintDispos();
 }
 async function saveInterv(){
   if(!myInterv)return;
@@ -754,18 +761,37 @@ window.proposeCreneau=async(mid)=>{
 window.cancelCreneau=async(id)=>{ const {error}=await sb.from('creneaux').delete().eq('id',id); if(error){alert(error.message);return;} renderFamille(); };
 window.confirmCreneau=async(id)=>{ const {error}=await sb.from('creneaux').update({statut:'confirme'}).eq('id',id); if(error){alert(error.message);return;} renderIntervenant(); };
 window.refuseCreneau=async(id)=>{ const {error}=await sb.from('creneaux').delete().eq('id',id); if(error){alert(error.message);return;} renderIntervenant(); };
+const DSHORT=['','Lu','Ma','Me','Je','Ve','Sa','Di'];
+function paintDispos(){
+  const strip=document.getElementById('daystrip'); if(!strip)return;
+  strip.innerHTML=[1,2,3,4,5,6,7].map(j=>{
+    const has=myDispos.some(d=>d.jour===j);
+    return '<button class="daypill'+(j===selDay?' on':'')+(has?' has':'')+'" onclick="selDispoDay('+j+')">'+DSHORT[j]+(has?'<span class="dot"></span>':'')+'</button>';
+  }).join('');
+  const panel=document.getElementById('dayPanel'); if(!panel)return;
+  const slots=myDispos.filter(d=>d.jour===selDay).sort((a,b)=>a.debut.localeCompare(b.debut));
+  let p='<div class="daytitle">'+JOURS[selDay]+'</div>';
+  if(slots.length){ p+='<div class="dispo-list">'+slots.map(d=>'<div class="cre"><span>🕘 '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join('')+'</div>'; }
+  else { p+='<div class="hint">Aucune plage le '+JOURS[selDay].toLowerCase()+' — ajoutez‑en une 👇</div>'; }
+  p+='<div class="addbox"><div class="addrow2">'
+    +'<label>De<div class="fbox">'+navIcon('clock')+'<input id="dd" type="time" value="09:00"></div></label>'
+    +'<label>À<div class="fbox">'+navIcon('clock')+'<input id="df" type="time" value="13:00"></div></label>'
+    +'</div><button class="addbtn" onclick="addDispo()">+ Ajouter le '+JOURS[selDay].toLowerCase()+'</button></div>';
+  panel.innerHTML=p;
+}
+window.selDispoDay=(j)=>{ selDay=j; paintDispos(); };
 window.addDispo=async()=>{
   if(!myInterv)return;
   const {data:{user}}=await sb.auth.getUser();
-  const jour=parseInt(document.getElementById('dj').value,10);
   const debut=document.getElementById('dd').value, fin=document.getElementById('df').value;
   if(!debut||!fin){alert('Indiquez une heure de début et de fin.');return;}
   if(fin<=debut){alert('La fin doit être après le début.');return;}
-  const {error}=await sb.from('dispos').insert({intervenant_id:myInterv.id,intervenant_user_id:user.id,jour,debut,fin});
+  const {data,error}=await sb.from('dispos').insert({intervenant_id:myInterv.id,intervenant_user_id:user.id,jour:selDay,debut,fin}).select();
   if(error){alert(error.message);return;}
-  renderIntervenant();
+  if(data&&data[0]) myDispos.push(data[0]);
+  paintDispos();
 };
-window.delDispo=async(id)=>{ const {error}=await sb.from('dispos').delete().eq('id',id); if(error){alert(error.message);return;} renderIntervenant(); };
+window.delDispo=async(id)=>{ const {error}=await sb.from('dispos').delete().eq('id',id); if(error){alert(error.message);return;} myDispos=myDispos.filter(d=>d.id!==id); paintDispos(); };
 window.acceptM=async(id,val)=>{
   if(val==='refuse' && !confirm('Indiquer que tu ne peux pas prendre cette mission ?'))return;
   const {error}=await sb.rpc('accept_mission',{p_id:id,p_accept:val});
