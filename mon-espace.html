@@ -224,6 +224,7 @@ details.prof[open]>summary::after{content:'⌃'}
     <div class="higreet"><button type="button" class="ava" id="ava" onclick="avatarTap()">··</button><div class="hi" id="hi">Bonjour 👋</div></div>
   </div></header>
   <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="uploadPhoto(event)">
+  <input type="file" id="casierInput" accept="application/pdf,image/*" style="display:none" onchange="uploadCasier(event)">
   <div class="wrap">
     <div id="body"><div class="loading">Chargement…</div></div>
   </div>
@@ -253,6 +254,18 @@ function setHello(txt,name,photo,canUpload){
   a.innerHTML = inner + (canUpload ? '<span class="cam" title="Changer la photo">＋</span>' : '');
   a.dataset.up = canUpload ? '1' : '';
 }
+window.uploadCasier=(ev)=>{
+  const f=ev.target.files&&ev.target.files[0]; if(!f||!myInterv){return;}
+  if(f.size>4*1024*1024){alert('Fichier trop lourd (max 4 Mo). Réduisez la photo ou le PDF.');ev.target.value='';return;}
+  const rd=new FileReader();
+  rd.onload=async()=>{
+    const {error}=await sb.from('intervenants').update({casier_doc:rd.result}).eq('id',myInterv.id);
+    if(error){alert('Échec de l\'envoi : '+error.message);return;}
+    myInterv.casier_doc=rd.result; renderIntervenant();
+  };
+  rd.readAsDataURL(f);
+  ev.target.value='';
+};
 window.avatarTap=()=>{ const a=document.getElementById('ava'); if(a&&a.dataset.up==='1'){ document.getElementById('photoInput').click(); } };
 window.uploadPhoto=(ev)=>{
   const f=ev.target.files&&ev.target.files[0]; if(!f||!myInterv){return;}
@@ -586,9 +599,12 @@ async function renderIntervenant(){
     return;
   }
   const esc=s=>(s||'').replace(/"/g,'&quot;');
-  const validated=prof.statut==='valide', refused=prof.statut==='refuse', needCasier=!prof.casier_ok;
+  const validated=prof.statut==='valide' && prof.casier_ok, refused=prof.statut==='refuse', needCasier=!prof.casier_ok;
+  const casPending = !prof.casier_ok && !!prof.casier_doc;
+  const casB = prof.casier_ok ? '<span class="badge b-ok">🛡️ Casier vérifié</span>'
+    : casPending ? '<span class="badge b-wait">⏳ En attente de vérification</span>'
+    : '<span class="badge b-wait">Casier à fournir</span>';
   setHello('Bonjour'+(prof.prenom?' '+prof.prenom:(prof.nom?' '+prof.nom:''))+' 👋', prof.prenom||prof.nom||'', prof.photo, true);
-  const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à fournir</span>';
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
   const curStart=new Date(); curStart.setDate(1); curStart.setHours(0,0,0,0);
@@ -703,11 +719,18 @@ async function renderIntervenant(){
   // 6) MES PAPIERS
   h+='<h2>Mes papiers</h2>';
   h+='<div class="item"><div class="who">🛡️ Casier judiciaire (bulletin n°3)</div>'
-    +'<div class="badges" style="margin-top:6px">'+casB+'</div>'
-    +(needCasier
-      ? '<div class="meta" style="margin-top:6px">Gratuit, souvent en moins d\'une heure en ligne si vous êtes né·e en France.</div><a class="go" href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener" style="background:var(--forest)">Faire ma demande →</a>'
-      : '<div class="meta" style="margin-top:6px">Casier vérifié ✅ Rien à faire.</div>')
-    +'</div>';
+    +'<div class="badges" style="margin-top:6px">'+casB+'</div>';
+  if(prof.casier_ok){
+    h+='<div class="meta" style="margin-top:6px">Casier vérifié par Chloé ✅ Rien à faire.</div>';
+  } else if(casPending){
+    h+='<div class="meta" style="margin-top:6px">Votre document a bien été reçu. Chloé le vérifie — vous serez validé·e dès que c\'est bon.</div>'
+      +'<button class="go" style="background:var(--forest);margin-top:8px" onclick="casierInput.click()">Remplacer le document</button>';
+  } else {
+    h+='<div class="meta" style="margin-top:6px">Demandez votre bulletin n°3 (gratuit, souvent en moins d\'une heure en ligne si vous êtes né·e en France), puis joignez-le ici.</div>'
+      +'<a class="go" href="https://casier-judiciaire.justice.gouv.fr/" target="_blank" rel="noopener" style="background:var(--forest);margin-top:8px">1 · Faire ma demande →</a>'
+      +'<button class="go" style="background:var(--coral-deep);margin-top:8px" onclick="casierInput.click()">2 · Joindre mon bulletin (PDF ou photo)</button>';
+  }
+  h+='</div>';
   h+='<div class="item"><div class="who">🧾 Mes déclarations</div><div class="meta" style="margin-top:6px">Une fois vos heures validées par la famille, vous déclarez en un clic depuis le récap de pointage (CESU / Pajemploi). Le lien apparaît sur chaque mission.</div></div>';
 
   const parts=h.split(/<!--PANE:(\w+)-->/);
