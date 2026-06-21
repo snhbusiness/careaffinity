@@ -509,6 +509,7 @@ async function renderFamille(){
   }
 
   // 4a) INTERVENTIONS À VALIDER (l'employeur confirme chaque intervention)
+  h+='<!--PANE:avalider-->';
   const toValid=pts.filter(p=>p.statut==='saisi').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(toValid.length){
     h+='<h2>Interventions à valider</h2>';
@@ -520,6 +521,7 @@ async function renderFamille(){
   }
 
   // 4bis) LE PLANNING (créneaux confirmés)
+  h+='<!--PANE:planning-->';
   const confF=creneaux.filter(c=>c.statut==='confirme');
   if(confF.length){
     const cAnn=confF.map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('avec '+(m.intervenant_nom||'votre intervenant')):''});});
@@ -551,6 +553,7 @@ async function renderFamille(){
   }
 
   // 5) MA DEMANDE
+  h+='<!--PANE:demande-->';
   h+='<h2>Ma demande</h2>';
   if(lastD){
     const st=lastD.statut==='traitee'?'<span class="badge b-ok">Traitée</span>':lastD.statut==='en_cours'?'<span class="badge b-wait">En cours</span>':'<span class="badge b-new">Reçue</span>';
@@ -560,6 +563,7 @@ async function renderFamille(){
   h+='<a class="go ghost" href="index.html" style="background:#fff;color:var(--forest);border:1.5px solid var(--line);margin-top:4px">Faire une autre demande →</a>';
 
   // 6) MES DÉMARCHES
+  h+='<!--PANE:demarches-->';
   if(lastD){
     const enfants=lastD.type==='enfants';
     h+='<h2>Mes démarches</h2><div class="item"><div class="who">'+(enfants?'🍼 Pajemploi':'🏠 CESU')+'</div>'
@@ -570,8 +574,13 @@ async function renderFamille(){
       +'</div><div class="meta" style="margin-top:6px">Pas d\'inquiétude : au moment de valider les heures, on vous guide pas à pas.</div></div>';
   }
 
-  document.getElementById('body').innerHTML=h;
+  const fparts=h.split(/<!--PANE:(\w+)-->/);
+  const fpanes={accueil:fparts[0]};
+  for(let i=1;i<fparts.length;i+=2){ fpanes[fparts[i]]=(fpanes[fparts[i]]||'')+(fparts[i+1]||''); }
+  const forder=['accueil','planning','demande','avalider','demarches'];
+  document.getElementById('body').innerHTML=forder.map(k=>'<section class="tabpane" data-tab="'+k+'">'+(fpanes[k]&&fpanes[k].trim()?fpanes[k]:'<div class="empty">Rien à afficher ici pour le moment.</div>')+'</section>').join('');
   buildNav('famille');
+  switchTab(forder.includes(curTab)?curTab:'accueil');
   if(step===1 && lastD) loadFamCount(lastD.id, lastD);
 }
 async function loadFamCount(demandeId, d){
