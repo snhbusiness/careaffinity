@@ -134,6 +134,13 @@ details.prof[open]>summary::after{content:'⌃'}
   .b-proche{background:var(--mint);color:var(--forest)}
 
   details.prof{border:none;border-radius:18px;box-shadow:0 12px 28px -24px rgba(15,70,63,.55)}
+
+  .bottomnav{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:calc(100% - 28px);max-width:532px;background:#fff;border-radius:24px;box-shadow:0 16px 42px -14px rgba(15,70,63,.45);display:flex;align-items:center;justify-content:space-around;padding:9px 6px;z-index:60}
+  .navitem{flex:1;background:none;border:none;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:.66rem;font-weight:700;cursor:pointer;padding:4px 0}
+  .navitem .ic{font-size:1.3rem;line-height:1}
+  .navfab{flex:none;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--coral) 0%,#F4A98F 100%);color:#fff;border:none;font-size:2rem;font-weight:300;line-height:1;box-shadow:0 12px 26px -8px rgba(224,115,90,.7);margin-top:-26px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .navfab span{font-size:.6rem;font-weight:700;position:absolute;margin-top:62px}
+  body.hasnav .wrap{padding-bottom:115px}
 </style>
 </head>
 <body>
@@ -181,6 +188,24 @@ function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMo
 function ptStatut(s){return s==='valide'?'<span class="badge b-ok">validée</span>':s==='conteste'?'<span class="badge b-no">contestée</span>':'<span class="badge b-wait">à valider</span>';}
 function ptLine(p,withName){const d=new Date(p.date+'T00:00');return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · '+(p.debut||'')+(p.fin?'–'+p.fin:'')+' ('+Math.round(p.minutes/6)/10+'h)';}
 function setHello(txt,name){const hi=document.getElementById('hi');if(hi)hi.textContent=txt;const a=document.getElementById('ava');if(a)a.textContent=(name&&name.trim()?name.trim().slice(0,2):'··').toUpperCase();}
+window.navGo=(label)=>{
+  if(label==='__top'){window.scrollTo({top:0,behavior:'smooth'});return;}
+  const hs=[...document.querySelectorAll('#app h2')];
+  const t=hs.find(x=>x.textContent.trim().toLowerCase().startsWith(label.toLowerCase()));
+  if(t){const y=t.getBoundingClientRect().top+window.scrollY-12;window.scrollTo({top:y,behavior:'smooth'});}
+};
+function buildNav(role){
+  const nav=document.getElementById('bnav'); if(!nav)return;
+  document.body.classList.add('hasnav');
+  const items = role==='intervenant'
+    ? [['🏠','Accueil','__top'],['🗓️','Planning','Mon planning'],['FAB','Pointer','Pointer'],['🕘','Dispos','Mes disponibilités'],['📄','Papiers','Mes papiers']]
+    : [['🏠','Accueil','__top'],['🗓️','Planning','Le planning'],['FAB','Demander','Organiser'],['✅','À valider','Interventions'],['📋','Démarches','Mes démarches']];
+  nav.innerHTML=items.map(it=> it[0]==='FAB'
+    ? '<button class="navfab" onclick="navGo(\''+it[2]+'\')">+<span>'+it[1]+'</span></button>'
+    : '<button class="navitem" onclick="navGo(\''+it[2]+'\')"><span class="ic">'+it[0]+'</span>'+it[1]+'</button>'
+  ).join('');
+  nav.style.display='flex';
+}
 function planSemaine(creneaux, withName){
   if(!creneaux||!creneaux.length) return '<div class="empty">Aucun créneau pour l\'instant. Chloé l\'organise avec vous.</div>';
   const byDay={};
@@ -427,6 +452,7 @@ async function renderFamille(){
   }
 
   document.getElementById('body').innerHTML=h;
+  buildNav('famille');
   if(step===1 && lastD) loadFamCount(lastD.id, lastD);
 }
 async function loadFamCount(demandeId, d){
@@ -575,6 +601,7 @@ async function renderIntervenant(){
   h+='<div class="item"><div class="who">🧾 Mes déclarations</div><div class="meta" style="margin-top:6px">Une fois vos heures validées par la famille, vous déclarez en un clic depuis le récap de pointage (CESU / Pajemploi). Le lien apparaît sur chaque mission.</div></div>';
 
   document.getElementById('body').innerHTML=h;
+  buildNav('intervenant');
 }
 async function saveInterv(){
   if(!myInterv)return;
@@ -649,5 +676,6 @@ sb.auth.onAuthStateChange(async(_e,session)=>{
 });
 (async()=>{ const {data:{session}}=await sb.auth.getSession(); if(session) enter(); })();
 </script>
+<nav id="bnav" class="bottomnav" style="display:none"></nav>
 </body>
 </html>
