@@ -141,6 +141,19 @@ details.prof[open]>summary::after{content:'⌃'}
   .navfab{flex:none;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--coral) 0%,#F4A98F 100%);color:#fff;border:none;font-size:2rem;font-weight:300;line-height:1;box-shadow:0 12px 26px -8px rgba(224,115,90,.7);margin-top:-26px;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .navfab span{font-size:.6rem;font-weight:700;position:absolute;margin-top:62px}
   body.hasnav .wrap{padding-bottom:115px}
+
+  .lead{font-size:.9rem;color:var(--muted);margin:-2px 0 13px;line-height:1.5}
+  .hint{font-size:.92rem;color:var(--forest);background:var(--mint);border-radius:15px;padding:14px 16px;margin-bottom:11px;text-align:center;line-height:1.45}
+  .dispo-list{margin-bottom:12px}
+  .dispo-list .cre b{color:var(--forest)}
+  .addbox{background:#fff;border-radius:20px;box-shadow:0 14px 32px -24px rgba(15,70,63,.55);padding:15px}
+  .addrow{display:flex;gap:10px;margin-bottom:13px}
+  .addrow label{flex:1;display:flex;flex-direction:column;gap:6px;font-size:.72rem;font-weight:800;color:var(--muted)}
+  .addrow label.wide{flex:1.35}
+  .addrow select,.addrow input{width:100%;font-family:inherit;font-size:1rem;padding:12px 11px;border:1.5px solid var(--line);border-radius:13px;background:#fff;color:var(--ink)}
+  .addrow select:focus,.addrow input:focus{outline:none;border-color:var(--forest)}
+  .addbtn{width:100%;background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 12px 26px -14px rgba(14,110,99,.8)}
+  .addbtn:active{transform:scale(.99)}
 </style>
 </head>
 <body>
@@ -191,7 +204,7 @@ function setHello(txt,name){const hi=document.getElementById('hi');if(hi)hi.text
 window.navGo=(label)=>{
   if(label==='__top'){window.scrollTo({top:0,behavior:'smooth'});return;}
   const hs=[...document.querySelectorAll('#app h2')];
-  const t=hs.find(x=>x.textContent.trim().toLowerCase().startsWith(label.toLowerCase()));
+  const t=hs.find(x=>x.textContent.trim().replace(/^[^\p{L}]+/u,'').toLowerCase().startsWith(label.toLowerCase()));
   if(t){const y=t.getBoundingClientRect().top+window.scrollY-12;window.scrollTo({top:y,behavior:'smooth'});}
 };
 function buildNav(role){
@@ -206,8 +219,8 @@ function buildNav(role){
   ).join('');
   nav.style.display='flex';
 }
-function planSemaine(creneaux, withName){
-  if(!creneaux||!creneaux.length) return '<div class="empty">Aucun créneau pour l\'instant. Chloé l\'organise avec vous.</div>';
+function planSemaine(creneaux, withName, emptyMsg){
+  if(!creneaux||!creneaux.length) return '<div class="hint">'+(emptyMsg||'Aucun créneau pour l\'instant.')+'</div>';
   const byDay={};
   creneaux.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut)).forEach(c=>{(byDay[c.jour]=byDay[c.jour]||[]).push(c);});
   let h='';
@@ -528,17 +541,22 @@ async function renderIntervenant(){
     +'</div>';
 
   // 3bis) MES DISPONIBILITÉS (l'intervenant déclare quand il peut)
-  h+='<h2>Mes disponibilités</h2>';
-  h+='<div style="font-size:.86rem;color:var(--muted);margin-bottom:8px">Indiquez quand vous êtes disponible. Les familles s\'en servent pour vous proposer des créneaux.</div>';
+  h+='<h2>🗓️ Mes disponibilités</h2>';
+  h+='<p class="lead">Indiquez quand vous êtes disponible. Les familles s\'en servent pour vous proposer des créneaux.</p>';
   const dsorted=dispos.slice().sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut));
-  if(dsorted.length){ h+=dsorted.map(d=>'<div class="cre"><span>'+JOURS[d.jour]+' · '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join(''); }
-  h+='<div class="dispo-add"><select id="dj">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select><input id="dd" type="time" value="09:00"><input id="df" type="time" value="12:00"><button onclick="addDispo()">+ Ajouter</button></div>';
+  if(dsorted.length){ h+='<div class="dispo-list">'+dsorted.map(d=>'<div class="cre"><span><b>'+JOURS[d.jour]+'</b> · '+fmtH(d.debut)+'–'+fmtH(d.fin)+'</span><button title="Retirer" onclick="delDispo(\''+d.id+'\')">✕</button></div>').join('')+'</div>'; }
+  else { h+='<div class="hint">Aucune disponibilité pour l\'instant — ajoutez‑en une ci‑dessous 👇</div>'; }
+  h+='<div class="addbox"><div class="addrow">'
+    +'<label class="wide">Jour<select id="dj">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select></label>'
+    +'<label>De<input id="dd" type="time" value="09:00"></label>'
+    +'<label>À<input id="df" type="time" value="12:00"></label>'
+    +'</div><button class="addbtn" onclick="addDispo()">+ Ajouter ce créneau</button></div>';
 
   // 3ter) CRÉNEAUX À CONFIRMER (proposés par les familles)
   if(validated){
     const toConfirm=creneaux.filter(c=>c.statut==='propose').sort((a,b)=>(a.jour||0)-(b.jour||0));
     if(toConfirm.length){
-      h+='<h2>Créneaux à confirmer</h2>';
+      h+='<h2>✅ Créneaux à confirmer</h2>';
       h+=toConfirm.map(c=>{const m=missions.find(x=>x.id===c.mission_id);
         return '<div class="item acc-amber"><div class="who">'+((m&&m.famille_prenom)||'Une famille')+' souhaite :</div>'
           +'<div class="meta" style="margin-top:2px">'+creLabel(c)+'</div>'
@@ -547,11 +565,11 @@ async function renderIntervenant(){
     }
     // MON PLANNING (créneaux confirmés)
     const conf=creneaux.filter(c=>c.statut==='confirme').map(c=>{const m=missions.find(x=>x.id===c.mission_id);return Object.assign({},c,{_name:m?('chez '+(m.famille_prenom||'famille')):''});});
-    h+='<h2>Mon planning</h2>'+planSemaine(conf,true);
+    h+='<h2>📅 Mon planning</h2>'+planSemaine(conf,true,'Pas encore de créneau confirmé. Vos disponibilités permettent aux familles de vous en proposer — vous les confirmez ici.');
 
     // POINTER MES HEURES (à chaque fin d'intervention)
     if(missions.length){
-      h+='<h2>Pointer mes heures</h2>';
+      h+='<h2>⏱️ Pointer mes heures</h2>';
       h+='<div style="font-size:.86rem;color:var(--muted);margin-bottom:8px">À la fin de chaque intervention, enregistrez vos heures réelles. La famille les valide.</div>';
       const tJ=(new Date().getDay()===0?7:new Date().getDay());
       const todayCre=conf.filter(c=>(!c.date&&c.jour===tJ)||(c.date===todayISO()));
@@ -568,7 +586,7 @@ async function renderIntervenant(){
   }
 
   // 4) MISSIONS (floutées si non validé)
-  h+='<h2 id="msec">Mes missions</h2>';
+  h+='<h2 id="msec">💼 Mes missions</h2>';
   let mHtml = missions.length ? missions.map(missionItem).join('')
     : '<div class="empty">Vos missions apparaîtront ici dès que Chloé vous en attribue.</div>';
   if(validated){ h+=mHtml; }
@@ -591,7 +609,7 @@ async function renderIntervenant(){
     +'</div></details>';
 
   // 6) MES PAPIERS
-  h+='<h2>Mes papiers</h2>';
+  h+='<h2>📄 Mes papiers</h2>';
   h+='<div class="item"><div class="who">🛡️ Casier judiciaire (bulletin n°3)</div>'
     +'<div class="badges" style="margin-top:6px">'+casB+'</div>'
     +(needCasier
