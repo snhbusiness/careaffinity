@@ -1,31 +1,476 @@
-// Chloé Domicile — service worker (notifications push + auto-update)
-// 🔁 Pour forcer une mise à jour de l'app installée : change ce numéro de version.
-const VERSION = '2026-06-14-28';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Chloé Domicile · Admin</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#21433B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Chloé Domicile">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Mulish:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF5F0; --card:#fff; --line:#EADBD0;
+    --coral:#D97A5E; --coral-deep:#C25A45; --coral-tint:#F7E2D8;
+    --forest:#21433B; --forest-soft:#2E5A4F;
+    --ink:#2B2420; --muted:#6E635C; --ok:#2E7D5B; --ok-tint:#DCEFE5;
+    --warn:#B5742A; --warn-tint:#F7E7CF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Mulish',system-ui,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:640px;margin:0 auto;padding:0 18px}
+  h1,h2,h3{font-family:'Fraunces',serif}
+  .brand{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--forest)}
 
-self.addEventListener('install', e => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+  #login{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  #login .brand{font-size:1.8rem;margin-bottom:4px}
+  #login .sub{color:var(--muted);margin-bottom:28px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:380px;text-align:left;box-shadow:0 14px 34px -24px rgba(43,36,32,.5)}
+  label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;margin:0 0 6px 2px}
+  input{width:100%;font-family:inherit;font-size:1rem;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;background:#fff;margin-bottom:14px}
+  input:focus{outline:none;border-color:var(--coral)}
+  .btn{width:100%;background:var(--forest);color:#fff;font-family:inherit;font-weight:800;font-size:1rem;padding:14px;border:none;border-radius:12px;cursor:pointer}
+  .btn:disabled{opacity:.5}
+  .err{color:var(--coral-deep);font-size:.88rem;margin-top:10px;min-height:1.1em}
 
-self.addEventListener('push', event => {
-  let data = {};
-  try { data = event.data.json(); } catch (e) { data = { title: 'Chloé Domicile', body: 'Nouvelle activité' }; }
-  const title = data.title || 'Chloé Domicile';
-  const options = {
-    body: data.body || '',
-    icon: 'icon-512.png',
-    badge: 'icon-512.png',
-    data: { url: data.url || 'admin.html' },
-    vibrate: [120, 60, 120]
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
-});
+  #app{display:none}
+  header{position:sticky;top:0;z-index:10;background:var(--forest);color:#fff;padding:12px 0}
+  header .wrap{display:flex;align-items:center;justify-content:space-between}
+  header .brand{color:#fff;font-size:1.2rem}
+  header .out{background:rgba(255,255,255,.14);border:none;color:#fff;font-family:inherit;font-weight:700;font-size:.82rem;padding:8px 12px;border-radius:9px;cursor:pointer}
 
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || 'admin.html';
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const c of list) { if ('focus' in c) return c.focus(); }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
-    })
-  );
-});
+  .notifbar{display:flex;align-items:center;gap:12px;background:var(--coral-tint);border:1px solid var(--coral);border-radius:13px;padding:12px 14px;margin:14px 0 4px;font-size:.9rem;color:var(--ink)}
+  .notifbar .notifbtn{margin-left:auto;background:var(--coral);color:#fff;border:none;font-family:inherit;font-weight:800;padding:9px 16px;border-radius:10px;cursor:pointer;white-space:nowrap}
+
+  .tabs{display:flex;gap:8px;padding:16px 0 8px}
+  .tab{flex:1;padding:11px;border:1.5px solid var(--line);background:#fff;border-radius:11px;font-family:inherit;font-weight:700;color:var(--muted);cursor:pointer;font-size:.95rem}
+  .tab.on{border-color:var(--coral);background:var(--coral-tint);color:var(--coral-deep)}
+  .tab .count{display:inline-block;background:var(--coral);color:#fff;border-radius:999px;font-size:.72rem;padding:1px 7px;margin-left:5px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin:6px 2px 12px}
+  .toolbar .n{color:var(--muted);font-size:.85rem}
+  .refresh{background:none;border:1.5px solid var(--line);border-radius:9px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:.82rem;color:var(--forest);cursor:pointer}
+
+  .item{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:11px}
+  .item.new{border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-tint)}
+  .item .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .item .who{font-weight:700;font-size:1.05rem}
+  .item .date{font-size:.78rem;color:var(--muted);white-space:nowrap}
+  .item .meta{font-size:.92rem;color:var(--muted);line-height:1.5}
+  .item .meta a{color:var(--forest);font-weight:700;text-decoration:none}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .badge{font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:999px}
+  .b-proche{background:#D8E5E0;color:var(--forest)} .b-enfants{background:var(--coral-tint);color:var(--coral-deep)}
+  .b-new{background:var(--coral);color:#fff} .b-ok{background:var(--ok-tint);color:var(--ok)} .b-wait{background:var(--warn-tint);color:var(--warn)}
+  .b-urg{background:#C2392B;color:#fff}
+  .b-cas-ok{background:var(--ok-tint);color:var(--ok)} .b-cas-no{background:var(--warn-tint);color:var(--warn)}
+  .item.urg{border-color:#C2392B;box-shadow:0 0 0 3px #F3D6D2}
+  .actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+  .act{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.82rem;cursor:pointer;color:var(--ink)}
+  .act.green{border-color:var(--ok);color:var(--ok)} .act.red{border-color:var(--coral-deep);color:var(--coral-deep)}
+  .act.on{background:var(--forest);color:#fff;border-color:var(--forest)}
+  .empty{text-align:center;color:var(--muted);padding:40px 16px}
+  .loading{text-align:center;color:var(--muted);padding:30px}
+  main{padding-bottom:50px}
+  .mform{background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:14px}
+  .mform h3{font-family:'Fraunces',serif;font-size:1.05rem;margin-bottom:10px}
+  .mform label{display:block;font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:0 0 4px 2px}
+  .mform input,.mform select{width:100%;font-family:inherit;font-size:.98rem;padding:10px 11px;border:1.5px solid var(--line);border-radius:10px;background:#fff;margin-bottom:9px}
+  .mform .two{display:flex;gap:9px}.mform .two>div{flex:1}
+  .mfold{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+  .mfold>summary{cursor:pointer;font-size:.86rem;font-weight:700;color:var(--muted);list-style:none;outline:none}
+  .mfold>summary::-webkit-details-marker{display:none}
+  .plan{background:var(--cream);border-radius:11px;padding:9px 11px;margin:8px 0}
+  .plan-h{font-weight:800;font-size:.82rem;color:var(--forest);margin-bottom:5px}
+  .cre{display:flex;align-items:center;justify-content:space-between;font-size:.88rem;padding:5px 0;border-bottom:1px solid var(--line)}
+  .cre:last-of-type{border-bottom:none}
+  .cre button{background:none;border:none;color:var(--coral-deep);font-size:1rem;cursor:pointer;padding:0 4px}
+  .cre-add{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+  .cre-add select,.cre-add input{font-family:inherit;font-size:.82rem;padding:7px 7px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .cre-add select{flex:1;min-width:96px}
+  .cre-add input{width:88px}
+  .cre-add button{background:var(--forest);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
+  .mlink{display:flex;gap:8px;align-items:center;background:var(--cream);border:1px dashed var(--line);border-radius:9px;padding:8px 10px;margin-top:8px;font-size:.8rem;word-break:break-all}
+  .mlink button{flex:none;background:var(--forest);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
+</style>
+<style>
+  /* ===== Refonte design cockpit (teal / mint / corail, Poppins) ===== */
+  :root{
+    --cream:#EEF5F3; --card:#fff; --line:#E4EEEB;
+    --coral:#F2937B; --coral-deep:#E0735A; --coral-tint:#FCE7E0;
+    --forest:#0E6E63; --forest-soft:#127A6E; --teal2:#2BA597; --mint:#DCEFEA;
+    --ink:#173A35; --muted:#6E807C;
+    --ok:#1FA971; --ok-tint:#D9F0E5; --warn:#C98A1E; --warn-tint:#FBEBD0;
+    --amber:#F2B600; --red:#E8506B; --green:#34C77B;
+  }
+  body{font-family:'Poppins',system-ui,sans-serif}
+  h1,h2,h3{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.015em}
+  .brand{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.01em}
+
+  header{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%) !important;border-radius:0 0 24px 24px;padding:14px 0 18px}
+  header .brand{color:#fff;font-size:1.25rem}
+  header .out{background:rgba(255,255,255,.2);border-radius:11px}
+
+  .tab{border:none;background:#fff;box-shadow:0 8px 20px -18px rgba(15,70,63,.5);border-radius:14px;color:var(--muted)}
+  .tab.on{background:var(--mint);color:var(--forest);box-shadow:none}
+  .tab .count{background:var(--coral)}
+
+  .item{border:none;border-radius:20px;box-shadow:0 14px 32px -24px rgba(15,70,63,.55);padding:16px}
+  .box{border:none;border-radius:24px;box-shadow:0 20px 46px -28px rgba(15,70,63,.5)}
+  .empty{border-radius:18px}
+  input:focus{border-color:var(--forest)}
+  .plan{background:var(--mint)}
+  .b-proche{background:var(--mint);color:var(--forest)}
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<div id="login">
+  <img src="icon-512.png" alt="Chloé Domicile" style="width:84px;height:84px;display:block;margin:0 auto 8px;border-radius:20px">
+  <div class="brand">Chloé Domicile</div>
+  <div class="sub">Espace administrateur</div>
+  <div class="box">
+    <label>Email</label>
+    <input id="email" type="email" autocomplete="username" placeholder="email de Chloé">
+    <label>Mot de passe</label>
+    <input id="pwd" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button class="btn" id="loginBtn" onclick="doLogin()">Se connecter</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+  <div style="text-align:center;margin-top:14px"><a href="index.html" style="color:var(--forest);text-decoration:none;font-weight:600">← Retour à l'accueil</a></div>
+</div>
+
+<div id="app">
+  <header><div class="wrap">
+    <span class="brand">Chloé Domicile · admin</span>
+    <button class="out" onclick="doLogout()">Déconnexion</button>
+  </div></header>
+  <div class="wrap">
+    <div id="notifBar" class="notifbar" style="display:none">
+      <span id="notifMsg">🔔 Activez les notifications pour être prévenue des nouvelles demandes.</span>
+      <button class="notifbtn" id="notifBtn" onclick="enableNotifs()">Activer</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" id="tabA" onclick="show('today')">Aujourd'hui</button>
+      <button class="tab" id="tabD" onclick="show('demandes')">Demandes<span class="count" id="cntD" style="display:none"></span></button>
+      <button class="tab" id="tabI" onclick="show('intervenants')">Intervenants<span class="count" id="cntI" style="display:none"></span></button>
+      <button class="tab" id="tabM" onclick="show('missions')">Missions</button>
+    </div>
+    <div class="toolbar">
+      <span class="n" id="listInfo"></span>
+      <button class="refresh" onclick="reload()">↻ Actualiser</button>
+    </div>
+    <main id="list"><div class="loading">Chargement…</div></main>
+  </div>
+</div>
+
+<script>
+/* ===== CONFIG ===== */
+const SUPABASE_URL  = 'https://tiappxjyhysezrbssuiz.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYXBweGp5aHlzZXpyYnNzdWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDA5NTcsImV4cCI6MjA5NzAxNjk1N30.5sWtB--nPRrbRlybEPuOWbXDQNfTuhMSu56xozbJ3fY';
+const VAPID_PUBLIC  = 'BIQAac2L6D1FxK4jwN03m8w94A9n6_HZTMoTk3SGCAeYQK3FpVeWT70yOIa-Y01rQ5lEh2dck3-asnIK6cjMsgI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let tab='today', dataD=[], dataI=[], dataM=[], dataP=[], dataInt=[], dataC=[];
+const JOURS=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function fmtH(t){if(!t)return'';const p=t.split(':');return parseInt(p[0],10)+'h'+(p[1]&&p[1]!=='00'?p[1]:'');}
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function fmtDate(iso){const d=new Date(iso);return d.getDate()+' '+MOIS[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');}
+function tel(t){return t?('<a href="tel:'+t.replace(/\s/g,'')+'">'+t+'</a>'):'-';}
+
+/* ===== Service worker + notifications ===== */
+function urlB64ToUint8(b){const p='='.repeat((4-b.length%4)%4);const s=(b+p).replace(/-/g,'+').replace(/_/g,'/');const r=atob(s);return Uint8Array.from([...r].map(c=>c.charCodeAt(0)));}
+async function registerSW(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    // recharge auto quand une nouvelle version prend la main (sauf à la 1re install)
+    if(navigator.serviceWorker.controller){
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(refreshing)return; refreshing=true; location.reload(); });
+    }
+    const reg=await navigator.serviceWorker.register('sw.js');
+    reg.update();
+    setInterval(()=>reg.update(), 60*60*1000); // vérifie les mises à jour chaque heure
+  }catch(e){ console.error('SW',e); }
+}
+function updateNotifBar(){
+  const bar=document.getElementById('notifBar'), msg=document.getElementById('notifMsg'), btn=document.getElementById('notifBtn');
+  if(!('Notification' in window) || !('serviceWorker' in navigator)){
+    bar.style.display='flex'; btn.style.display='none';
+    msg.textContent="📲 Pour les notifications : touchez Partager → « Sur l'écran d'accueil », puis rouvrez Chloé Domicile depuis l'icône installée.";
+    return;
+  }
+  if(Notification.permission==='granted'){ bar.style.display='none'; return; }
+  bar.style.display='flex'; btn.style.display='inline-block';
+  msg.textContent='🔔 Activez les notifications pour être prévenue des nouvelles demandes.';
+}
+async function enableNotifs(){
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ alert('Notifications non autorisées.'); return; }
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)});
+    const j=sub.toJSON();
+    const {data:{user}}=await sb.auth.getUser();
+    const {error}=await sb.from('push_subscriptions').upsert({endpoint:j.endpoint,subscription:j,user_email:user?user.email:null},{onConflict:'endpoint'});
+    if(error){console.error(error);alert('Erreur enregistrement : '+error.message);return;}
+    document.getElementById('notifBar').style.display='none';
+    alert('Notifications activées ✅');
+  }catch(e){ console.error(e); alert("Impossible d'activer : "+e.message); }
+}
+
+/* ===== Auth ===== */
+async function init(){ registerSW(); const {data:{session}}=await sb.auth.getSession(); if(session){enterApp();} }
+async function doLogin(){
+  const email=document.getElementById('email').value.trim(), pwd=document.getElementById('pwd').value;
+  const btn=document.getElementById('loginBtn'), err=document.getElementById('loginErr');
+  err.textContent=''; btn.disabled=true; btn.textContent='Connexion…';
+  const {error}=await sb.auth.signInWithPassword({email,password:pwd});
+  btn.disabled=false; btn.textContent='Se connecter';
+  if(error){err.textContent='Email ou mot de passe incorrect.';return;}
+  enterApp();
+}
+async function doLogout(){await sb.auth.signOut();location.reload();}
+function enterApp(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  updateNotifBar(); reload();
+}
+
+/* ===== Données ===== */
+async function reload(){
+  document.getElementById('list').innerHTML='<div class="loading">Chargement…</div>';
+  const [rd,ri,rm,rp,rint,rc]=await Promise.all([
+    sb.from('demandes').select('*').order('created_at',{ascending:false}),
+    sb.from('intervenants').select('*').order('created_at',{ascending:false}),
+    sb.from('missions').select('*').order('created_at',{ascending:false}),
+    sb.from('pointages').select('*'),
+    sb.from('interets').select('*'),
+    sb.from('creneaux').select('*')
+  ]);
+  dataD=rd.data||[]; dataI=ri.data||[]; dataM=rm.data||[]; dataP=rp.data||[]; dataInt=rint.data||[]; dataC=rc.data||[];
+  dataD.sort((a,b)=>((b.urgent&&b.statut==='nouvelle')?1:0)-((a.urgent&&a.statut==='nouvelle')?1:0));
+  setCount('cntD',dataD.filter(x=>x.statut==='nouvelle').length);
+  setCount('cntI',dataI.filter(x=>x.statut==='a_verifier').length);
+  render();
+}
+function setCount(id,n){const e=document.getElementById(id);if(n>0){e.textContent=n;e.style.display='inline-block';}else{e.style.display='none';}}
+function show(t){tab=t;document.getElementById('tabA').classList.toggle('on',t==='today');document.getElementById('tabD').classList.toggle('on',t==='demandes');document.getElementById('tabI').classList.toggle('on',t==='intervenants');document.getElementById('tabM').classList.toggle('on',t==='missions');render();}
+
+function renderToday(box,info){
+  info.textContent='Vos priorités';
+  const s=n=>n>1?'s':'';
+  const demUrg=dataD.filter(d=>d.urgent && d.statut==='nouvelle');
+  const demNew=dataD.filter(d=>!d.urgent && d.statut==='nouvelle');
+  const demCours=dataD.filter(d=>d.statut==='en_cours');
+  const intVal=dataI.filter(i=>i.statut==='a_verifier' && i.casier_ok);
+  const intCas=dataI.filter(i=>i.statut==='a_verifier' && !i.casier_ok);
+  const missRef=dataM.filter(m=>m.accept==='refuse');
+  const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
+  const PY=_p.getFullYear(), PM=_p.getMonth()+1;
+  const missClose=dataM.filter(m=>{const its=dataP.filter(p=>{const d=new Date(p.date);return p.mission_id===m.id&&d.getFullYear()===PY&&(d.getMonth()+1)===PM;});return its.length && !its.every(p=>p.statut==='valide');});
+
+  function card(ic,kind,lab,cta,act){
+    return '<div class="item '+(kind||'')+'"><div class="top"><div class="who">'+ic+' '+lab+'</div></div>'
+      +'<div class="actions"><button class="act '+(kind==='urg'?'':'green')+'" onclick="'+act+'">'+cta+'</button></div></div>';
+  }
+  const cards=[];
+  if(demUrg.length)  cards.push(card('⚡','urg', '<b>'+demUrg.length+'</b> demande'+s(demUrg.length)+' <b>URGENTE'+s(demUrg.length).toUpperCase()+'</b> à traiter', 'Traiter', "show('demandes')"));
+  if(demNew.length)  cards.push(card('🆕','new', '<b>'+demNew.length+'</b> nouvelle'+s(demNew.length)+' demande'+s(demNew.length)+' à rappeler', 'Voir', "show('demandes')"));
+  if(missRef.length) cards.push(card('⚠️','urg', '<b>'+missRef.length+'</b> mission'+s(missRef.length)+' refusée'+s(missRef.length)+' — à réattribuer', 'Voir', "show('missions')"));
+  if(intVal.length)  cards.push(card('✅','new', '<b>'+intVal.length+'</b> intervenant'+s(intVal.length)+' prêt'+s(intVal.length)+' à valider (casier OK)', 'Valider', "show('intervenants')"));
+  if(missClose.length) cards.push(card('🧾','', '<b>'+missClose.length+'</b> mois à valider pour vos missions', 'Voir', "show('missions')"));
+  if(demCours.length) cards.push(card('📞','', '<b>'+demCours.length+'</b> demande'+s(demCours.length)+' en cours à suivre', 'Voir', "show('demandes')"));
+  if(intCas.length)  cards.push(card('🛡️','', '<b>'+intCas.length+'</b> intervenant'+s(intCas.length)+' en attente de casier (à relancer)', 'Voir', "show('intervenants')"));
+
+  let h='<div class="item" style="background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);color:#fff;border:none;border-radius:22px"><div class="who" style="color:#fff;font-size:1.15rem">Bonjour Chloé 👋</div>'
+    +'<div class="meta" style="color:#cfe3dc;margin-top:2px">'+(cards.length?'Voici ce qui vous attend aujourd\'hui.':'Tout est à jour, rien d\'urgent. ✨')+'</div></div>';
+  if(cards.length){ h+=cards.join(''); }
+  else { h+='<div class="empty">Aucune action urgente. Profitez-en ! ☕<br><span style="font-size:.85rem;color:var(--muted)">Les nouvelles demandes et inscriptions remonteront ici automatiquement.</span></div>'; }
+  box.innerHTML=h;
+}
+function render(){
+  const box=document.getElementById('list'), info=document.getElementById('listInfo');
+  if(tab==='today'){renderToday(box,info);return;}
+  if(tab==='missions'){renderMissions(box,info);return;}
+  if(tab==='demandes'){
+    info.textContent=dataD.length+' demande(s)';
+    if(!dataD.length){box.innerHTML='<div class="empty">Aucune demande pour l\'instant.</div>';return;}
+    box.innerHTML=dataD.map(d=>{
+      const isNew=d.statut==='nouvelle';
+      const isUrg=d.urgent && d.statut==='nouvelle';
+      const stBadge = d.statut==='traitee' ? '<span class="badge b-ok">Traitée</span>'
+        : d.statut==='rappelee' ? '<span class="badge b-ok">Rappelée</span>'
+        : d.statut==='en_cours' ? '<span class="badge b-wait">En cours</span>'
+        : '<span class="badge b-new">Nouvelle</span>';
+      const urgBadge = d.urgent ? '<span class="badge b-urg">⚡ Urgent</span>' : '';
+      return '<div class="item '+(isUrg?'urg':(isNew?'new':''))+'">'
+        +'<div class="top"><div class="who">'+(d.prenom||'—')+'</div><div class="date">'+fmtDate(d.created_at)+'</div></div>'
+        +'<div class="badges">'+urgBadge+'<span class="badge '+(d.type==='enfants'?'b-enfants':'b-proche')+'">'+(d.type==='enfants'?'Enfants':'Proche')+'</span>'+stBadge+'</div>'
+        +'<div class="meta">📍 '+(d.commune||'-')+' · 📞 '+tel(d.telephone)+'</div>'
+        +((d.quand||d.heures||d.specificite||d.budget)?'<div class="meta" style="margin-top:2px">'+[d.quand,d.heures,d.specificite,d.budget].filter(Boolean).join(' · ')+'</div>':'')
+        +(function(){const ints=dataInt.filter(x=>x.demande_id===d.id);if(!ints.length)return '';const noms=ints.map(x=>{const iv=dataI.find(z=>z.id===x.intervenant_id);return iv?iv.nom:'?';}).join(', ');return '<div class="meta" style="margin-top:2px;color:var(--coral-deep);font-weight:700">💛 Intéressée par : '+noms+'</div>';})()
+        +'<div class="actions">'
+        +'<button class="act '+(d.statut==='rappelee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'rappelee\')">Rappelée</button>'
+        +'<button class="act '+(d.statut==='en_cours'?'on':'')+'" onclick="setD(\''+d.id+'\',\'en_cours\')">En cours</button>'
+        +'<button class="act '+(d.statut==='traitee'?'on':'')+'" onclick="setD(\''+d.id+'\',\'traitee\')">Traitée</button>'
+        +'<button class="act" onclick="matchDemande(\''+d.id+'\')">✨ Proposer (IA)</button>'
+        +'</div><div id="match_'+d.id+'"></div></div>';
+    }).join('');
+  } else {
+    info.textContent=dataI.length+' intervenant(s)';
+    if(!dataI.length){box.innerHTML='<div class="empty">Aucune inscription pour l\'instant.</div>';return;}
+    box.innerHTML=dataI.map(i=>{
+      const isNew=i.statut==='a_verifier';
+      const stBadge=i.statut==='valide'?'<span class="badge b-ok">Validé</span>':i.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">À vérifier</span>';
+      const casBadge = i.casier_ok ? '<span class="badge b-cas-ok">🛡️ Casier vérifié</span>'
+        : (i.casier_consent ? '<span class="badge b-cas-no">Casier à vérifier</span>' : '<span class="badge b-cas-no">Casier non accepté</span>');
+      return '<div class="item '+(isNew?'new':'')+'">'
+        +'<div class="top"><div class="who">'+(i.nom||'—')+'</div><div class="date">'+fmtDate(i.created_at)+'</div></div>'
+        +'<div class="badges">'+stBadge+casBadge+'</div>'
+        +'<div class="meta">📞 '+tel(i.telephone)+' · 📍 '+(i.zone||'-')+'<br>🧰 '+((i.services||[]).join(', ')||'-')+(i.specialites?'<br>⭐ '+i.specialites:'')+(i.experience?'<br>⏳ '+i.experience+' ans':'')+(i.disponibilites?'<br>🕑 '+i.disponibilites:'')+'</div>'
+        +'<div class="actions">'
+        +'<button class="act '+(i.casier_ok?'on':'')+'" onclick="setCasier(\''+i.id+'\','+(!i.casier_ok)+')">'+(i.casier_ok?'🛡️ Casier OK':'Marquer casier vérifié')+'</button>'
+        +'<button class="act green '+(i.statut==='valide'?'on':'')+'" onclick="setI(\''+i.id+'\',\'valide\')">Valider</button>'
+        +'<button class="act red '+(i.statut==='refuse'?'on':'')+'" onclick="setI(\''+i.id+'\',\'refuse\')">Refuser</button>'
+        +'</div></div>';
+    }).join('');
+  }
+}
+async function setD(id,statut){await sb.from('demandes').update({statut}).eq('id',id);const x=dataD.find(d=>d.id===id);if(x)x.statut=statut;setCount('cntD',dataD.filter(d=>d.statut==='nouvelle').length);render();}
+async function createMissionFromMatch(demandeId,intId){
+  const taux=prompt('Taux net €/h pour cette mission (vous pourrez le modifier ensuite) :','14');
+  if(taux===null)return;
+  const {error}=await sb.rpc('create_mission_from_match',{p_demande:demandeId,p_intervenant:intId,p_taux:taux?parseFloat(taux.replace(',','.')):null});
+  if(error){alert('Erreur : '+error.message);return;}
+  alert('Mission créée et reliée automatiquement ✅\nLa famille et l\'intervenant la verront dans leur espace.');
+  await reload(); show('missions');
+}
+async function matchDemande(id){
+  const box=document.getElementById('match_'+id); if(!box)return;
+  box.innerHTML='<div class="loading" style="padding:14px">✨ L\'IA analyse les profils…</div>';
+  try{
+    const {data,error}=await sb.functions.invoke('match',{body:{demande_id:id}});
+    if(error)throw error;
+    const ms=(data&&data.matches)||[];
+    if(!ms.length){box.innerHTML='<div class="meta" style="margin-top:8px">Aucun intervenant validé pertinent pour l\'instant.</div>';return;}
+    box.innerHTML='<div style="margin-top:10px;font-weight:800;font-size:.82rem;color:var(--forest)">✨ Intervenants proposés</div>'+ms.map(x=>'<div style="background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:7px"><b>'+(x.nom||'—')+'</b> <span class="badge b-ok">'+(x.score||0)+'%</span>'+(x.casier_ok?' <span class="badge b-cas-ok">🛡️</span>':'')+'<div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div><div style="font-size:.86rem;margin-top:3px">'+(x.raison||'')+'</div>'+(x.id?'<button class="act green" style="margin-top:8px;width:100%" onclick="createMissionFromMatch(\''+id+'\',\''+x.id+'\')">✅ Créer la mission avec '+(x.nom||'cette personne').replace(/\x27/g,"")+'</button>':'')+'</div>').join('');
+  }catch(e){box.innerHTML='<div class="meta" style="margin-top:8px;color:var(--coral-deep)">Erreur matching : '+(e.message||e)+'</div>';}
+}
+async function setCasier(id,val){await sb.from('intervenants').update({casier_ok:val}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.casier_ok=val;render();}
+async function setI(id,statut){
+  if(statut==='valide'){const x0=dataI.find(i=>i.id===id);if(x0&&!x0.casier_ok){alert('⚠️ Vérifiez d\'abord le casier judiciaire (bulletin n° 3) avant de valider cet intervenant.');return;}}
+  await sb.from('intervenants').update({statut}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.statut=statut;setCount('cntI',dataI.filter(i=>i.statut==='a_verifier').length);render();
+}
+
+/* ===== Missions / pointage ===== */
+function monthTotalMin(missionId){
+  const now=new Date(), y=now.getFullYear(), mo=now.getMonth()+1;
+  return dataP.filter(p=>p.mission_id===missionId&&(()=>{const d=new Date(p.date);return d.getFullYear()===y&&(d.getMonth()+1)===mo;})()).reduce((s,p)=>s+p.minutes,0);
+}
+function fmtMin(min){const h=Math.floor(min/60),m=min%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
+function ptLink(token){return new URL('pointage.html?m='+token, location.href).href;}
+
+function renderMissions(box,info){
+  info.textContent=dataM.length+' mission(s)';
+  let html='';
+  const formHtml='<div class="mform"><p style="font-size:.82rem;color:var(--muted);margin:0 0 10px;line-height:1.4">À utiliser <b>seulement</b> pour une mise en relation hors site (famille connue en direct). Sinon, passez par <b>Demandes → ✨ Proposer (IA) → ✅ Créer la mission</b> : tout se remplit et se relie automatiquement.</p>'
+    +'<div class="two"><div><label>Prénom famille</label><input id="m_fprenom" placeholder="ex. Sophie"></div><div><label>Tél famille</label><input id="m_ftel" placeholder="06…"></div></div>'
+    +'<label>Intervenant·e</label><input id="m_interv" placeholder="Nom de l\'intervenant·e">'
+    +'<div class="two"><div><label>Régime</label><select id="m_regime"><option value="cesu">CESU (proche)</option><option value="pajemploi">Pajemploi (enfants)</option></select></div><div><label>Taux net €/h</label><input id="m_taux" type="number" inputmode="decimal" placeholder="ex. 14"></div></div>'
+    +'<label>Email du compte famille (optionnel)</label><input id="m_femail" type="email" placeholder="pour relier la mission à son espace">'
+    +'<label>Email du compte intervenant (optionnel)</label><input id="m_iemail" type="email" placeholder="pour relier la mission à son espace">'
+    +'<button class="add" style="width:100%;background:var(--forest);color:#fff;border:none;border-radius:10px;padding:12px;font-family:inherit;font-weight:800;cursor:pointer" onclick="createMission()">Créer la mission</button></div>';
+
+  if(!dataM.length){html+='<div class="empty">Aucune mission pour l\'instant.<br><span style="font-size:.85rem;color:var(--muted)">Le plus simple : onglet <b>Demandes</b> → « ✨ Proposer (IA) » → « ✅ Créer la mission ».</span></div>';}
+  else{
+    html+=dataM.map(m=>{
+      const tot=monthTotalMin(m.id);
+      const montant=m.taux_horaire?(tot/60*Number(m.taux_horaire)).toFixed(2)+' €':'';
+      const link=ptLink(m.token);
+      return '<div class="item">'
+        +'<div class="top"><div class="who">'+(m.famille_prenom||'—')+' · '+(m.intervenant_nom||'—')+'</div></div>'
+        +'<div class="badges"><span class="badge '+(m.regime==='pajemploi'?'b-enfants':'b-proche')+'">'+(m.regime==='pajemploi'?'Pajemploi':'CESU')+'</span>'+(m.taux_horaire?'<span class="badge b-ok">'+Number(m.taux_horaire).toFixed(2)+' €/h</span>':'')+(m.famille_user_id?'<span class="badge b-ok">👤 Compte famille lié</span>':'')+(m.intervenant_user_id?'<span class="badge b-ok">🧑 Compte intervenant lié</span>':'')+(m.accept==='accepte'?'<span class="badge b-ok">✅ Intervenant a accepté</span>':m.accept==='refuse'?'<span class="badge b-urg">⚠️ Intervenant a refusé</span>':'')+'</div>'
+        +'<div class="meta">Ce mois-ci : <b>'+fmtMin(tot)+'</b>'+(montant?' · '+montant:'')+'</div>'
+        +'<div class="mlink"><span>'+link+'</span><button onclick="copyLink(\''+link+'\')">Copier</button></div>'
+        +(m.famille_user_id?'':'<div class="mlink"><input id="fe_'+m.id+'" type="email" placeholder="email du compte famille" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkFam(\''+m.id+'\')">Lier</button></div>')
+        +(m.intervenant_user_id?'':'<div class="mlink"><input id="ie_'+m.id+'" type="email" placeholder="email du compte intervenant" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:.8rem"><button onclick="linkInterv(\''+m.id+'\')">Lier</button></div>')
+        +'</div>';
+    }).join('');
+  }
+  html+='<details class="mfold"><summary>+ Créer une mission manuellement (cas rare)</summary>'+formHtml+'</details>';
+  box.innerHTML=html;
+}
+function planBlock(m){
+  const cs=dataC.filter(c=>c.mission_id===m.id).sort((a,b)=>(a.jour-b.jour)||a.debut.localeCompare(b.debut));
+  let h='<div class="plan"><div class="plan-h">📅 Semaine type</div>';
+  if(cs.length){ h+=cs.map(c=>'<div class="cre"><span>'+JOURS[c.jour]+' · '+fmtH(c.debut)+'–'+fmtH(c.fin)+'</span><button title="Supprimer" onclick="delCreneau(\''+c.id+'\')">✕</button></div>').join(''); }
+  else { h+='<div class="meta" style="margin:2px 0 4px">Aucun créneau pour l\'instant.</div>'; }
+  h+='<div class="cre-add"><select id="cj_'+m.id+'">'+[1,2,3,4,5,6,7].map(j=>'<option value="'+j+'">'+JOURS[j]+'</option>').join('')+'</select>'
+    +'<input id="cd_'+m.id+'" type="time" value="09:00"><input id="cf_'+m.id+'" type="time" value="12:00">'
+    +'<button onclick="addCreneau(\''+m.id+'\')">+ Ajouter</button></div></div>';
+  return h;
+}
+async function addCreneau(missionId){
+  const jour=parseInt(document.getElementById('cj_'+missionId).value,10);
+  const debut=document.getElementById('cd_'+missionId).value;
+  const fin=document.getElementById('cf_'+missionId).value;
+  if(!debut||!fin){alert('Indiquez une heure de début et de fin.');return;}
+  if(fin<=debut){alert('L\'heure de fin doit être après le début.');return;}
+  const {error}=await sb.from('creneaux').insert({mission_id:missionId,jour,debut,fin});
+  if(error){alert(error.message);return;}
+  await reload(); show('missions');
+}
+async function delCreneau(id){
+  const {error}=await sb.from('creneaux').delete().eq('id',id);
+  if(error){alert(error.message);return;}
+  await reload(); show('missions');
+}
+async function createMission(){
+  const fprenom=document.getElementById('m_fprenom').value.trim();
+  const ftel=document.getElementById('m_ftel').value.trim();
+  const interv=document.getElementById('m_interv').value.trim();
+  const regime=document.getElementById('m_regime').value;
+  const taux=parseFloat(document.getElementById('m_taux').value)||null;
+  const femail=document.getElementById('m_femail').value.trim();
+  const iemail=document.getElementById('m_iemail').value.trim();
+  if(!fprenom||!interv){alert('Renseignez au moins le prénom de la famille et le nom de l\'intervenant.');return;}
+  const {data:ins,error}=await sb.from('missions').insert({famille_prenom:fprenom,famille_tel:ftel,intervenant_nom:interv,regime,taux_horaire:taux}).select().single();
+  if(error){alert('Erreur : '+error.message);return;}
+  if(femail&&ins){const {error:e2}=await sb.rpc('admin_link_family',{p_mission_id:ins.id,p_email:femail});if(e2)alert('Mission créée, mais lien famille impossible : '+e2.message);}
+  if(iemail&&ins){const {error:e3}=await sb.rpc('admin_link_intervenant',{p_mission_id:ins.id,p_email:iemail});if(e3)alert('Mission créée, mais lien intervenant impossible : '+e3.message);}
+  await reload(); show('missions');
+}
+async function linkFam(missionId){
+  const v=document.getElementById('fe_'+missionId).value.trim();
+  if(!v){alert('Entrez l\'email du compte famille.');return;}
+  const {error}=await sb.rpc('admin_link_family',{p_mission_id:missionId,p_email:v});
+  if(error){alert(error.message);return;}
+  await reload(); show('missions');
+}
+async function linkInterv(missionId){
+  const v=document.getElementById('ie_'+missionId).value.trim();
+  if(!v){alert('Entrez l\'email du compte intervenant.');return;}
+  const {error}=await sb.rpc('admin_link_intervenant',{p_mission_id:missionId,p_email:v});
+  if(error){alert(error.message);return;}
+  alert('Email enregistré. La mission se reliera automatiquement à son espace (dès que l\'intervenant aura créé son compte avec cet email).');
+  await reload(); show('missions');
+}
+function copyLink(url){navigator.clipboard.writeText(url).then(()=>alert('Lien copié ✅')).catch(()=>prompt('Copiez le lien :',url));}
+async function validateMonthAdmin(missionId){
+  const now=new Date();
+  if(!confirm('Valider toutes les heures saisies ce mois-ci pour cette mission ?'))return;
+  const {data:pts}=await sb.from('pointages').select('id,date,statut').eq('mission_id',missionId).eq('statut','saisi');
+  const ids=(pts||[]).filter(p=>{const d=new Date(p.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).map(p=>p.id);
+  if(!ids.length){alert('Aucune heure à valider ce mois-ci.');return;}
+  await sb.from('pointages').update({statut:'valide'}).in('id',ids);
+  await reload(); show('missions');
+}
+
+init();
+</script>
+</body>
+</html>
