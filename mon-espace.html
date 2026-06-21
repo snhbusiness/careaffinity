@@ -268,16 +268,22 @@ window.uploadCasier=(ev)=>{
 };
 window.avatarTap=()=>{ const a=document.getElementById('ava'); if(a&&a.dataset.up==='1'){ document.getElementById('photoInput').click(); } };
 window.uploadPhoto=(ev)=>{
-  const f=ev.target.files&&ev.target.files[0]; if(!f||!myInterv){return;}
+  const f=ev.target.files&&ev.target.files[0]; if(!f){return;}
   const rd=new FileReader();
   rd.onload=()=>{ const img=new Image(); img.onload=async()=>{
     const S=320, c=document.createElement('canvas'); c.width=S; c.height=S;
     const ctx=c.getContext('2d'); const m=Math.min(img.width,img.height);
     ctx.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
     const data=c.toDataURL('image/jpeg',0.82);
-    const {error}=await sb.from('intervenants').update({photo:data}).eq('id',myInterv.id);
-    if(error){alert('Échec de l\'enregistrement : '+error.message);return;}
-    myInterv.photo=data; renderIntervenant();
+    if(myInterv){
+      const {error}=await sb.from('intervenants').update({photo:data}).eq('id',myInterv.id);
+      if(error){alert('Échec : '+error.message);return;}
+      myInterv.photo=data; renderIntervenant();
+    } else if(myProfile){
+      const {error}=await sb.from('profiles').update({photo:data}).eq('id',myProfile.id);
+      if(error){alert('Échec : '+error.message);return;}
+      myProfile.photo=data; renderFamille();
+    }
   }; img.src=rd.result; };
   rd.readAsDataURL(f);
   ev.target.value='';
@@ -315,10 +321,10 @@ function buildNav(role){
       : '<button class="navitem" data-tab="'+it[1]+'" aria-label="'+it[1]+'" onclick="switchTab(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
     ).join('');
   } else {
-    const items=[['home','__top'],['cal','Le planning'],['plus','Organiser'],['check','Interventions'],['list','Mes démarches']];
+    const items=[['home','accueil'],['cal','planning'],['plus','demande'],['check','avalider'],['list','demarches']];
     nav.innerHTML=items.map(it=> it[0]==='plus'
-      ? '<button class="navfab" aria-label="Action" onclick="navGo(\''+it[1]+'\')">'+navIcon('plus')+'</button>'
-      : '<button class="navitem" aria-label="'+it[1]+'" onclick="navGo(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
+      ? '<button class="navfab" aria-label="Demander" onclick="switchTab(\'demande\')">'+navIcon('plus')+'</button>'
+      : '<button class="navitem" data-tab="'+it[1]+'" aria-label="'+it[1]+'" onclick="switchTab(\''+it[1]+'\')">'+navIcon(it[0])+'</button>'
     ).join('');
   }
   nav.style.display='flex';
@@ -334,6 +340,7 @@ function planSemaine(creneaux, withName, emptyMsg){
   return h;
 }
 let myInterv=null;
+let myProfile=null;
 let myDispos=[];
 let selDay=(new Date().getDay()===0?7:new Date().getDay());
 function setMsg(t,ok){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
@@ -425,7 +432,8 @@ async function setRole(role){
   route(prof||{id:user.id,role},user);
 }
 function route(prof,user){
-  setHello('Bonjour'+(prof.prenom?' '+prof.prenom:'')+' 👋', prof.prenom||'');
+  myProfile=prof;
+  setHello('Bonjour'+(prof.prenom?' '+prof.prenom:'')+' 👋', prof.prenom||'', prof.photo, false);
   if(prof.role==='admin'){document.getElementById('body').innerHTML='<div class="empty" style="text-align:left">Vous êtes connectée en administratrice.</div><a class="go" href="admin.html" style="margin-top:12px">Ouvrir le cockpit →</a>';return;}
   if(prof.role==='intervenant'){return renderIntervenant();}
   return renderFamille();
@@ -449,6 +457,8 @@ async function renderFamille(){
     sb.from('dispos').select('*')
   ]);
   const demandes=rd.data||[], missions=rm.data||[], pts=rp.data||[], decls=rdec.data||[], creneaux=rc.data||[], dispos=rdi.data||[];
+  const famName=(myProfile&&myProfile.prenom)||(demandes[0]&&(demandes[0].prenom||demandes[0].famille_prenom))||'';
+  setHello('Bonjour'+(famName?' '+famName:'')+' 👋', famName, myProfile&&myProfile.photo, true);
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
   function prevStatus(mid){
