@@ -116,6 +116,9 @@
   .tab{border:none;background:#fff;box-shadow:0 8px 20px -18px rgba(15,70,63,.5);border-radius:14px;color:var(--muted)}
   .tab.on{background:var(--mint);color:var(--forest);box-shadow:none}
   .tab .count{background:var(--coral)}
+  .tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-right:18px;scroll-padding-right:18px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs .tab{flex:0 0 auto;white-space:nowrap}
 
   .item{border:none;border-radius:20px;box-shadow:0 14px 32px -24px rgba(15,70,63,.55);padding:16px}
   .box{border:none;border-radius:24px;box-shadow:0 20px 46px -28px rgba(15,70,63,.5)}
@@ -234,7 +237,16 @@ async function doLogin(){
   enterApp();
 }
 async function doLogout(){await sb.auth.signOut();location.reload();}
-function enterApp(){
+async function enterApp(){
+  const {data:isAdmin,error}=await sb.rpc('is_admin');
+  if(error || !isAdmin){
+    await sb.auth.signOut();
+    document.getElementById('app').style.display='none';
+    document.getElementById('login').style.display='';
+    const err=document.getElementById('loginErr');
+    if(err) err.innerHTML='Cet espace est réservé à Chloé. Si vous êtes une famille ou un intervenant, <a href="mon-espace.html" style="color:var(--coral-deep);font-weight:700;text-decoration:underline">accédez à votre espace</a>.';
+    return;
+  }
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
   updateNotifBar(); reload();
