@@ -104,9 +104,16 @@ details.prof[open]>summary::after{content:'⌃'}
   .brand{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.01em}
   .section h2{font-size:1.2rem;color:var(--forest);font-weight:800}
 
-  #app header{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);padding:16px 0 30px;border-radius:0 0 28px 28px}
+  #app header{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);padding:16px 0 22px;border-radius:0 0 28px 28px}
   #app header .brand{color:#fff;font-size:1.25rem}
   header .out{background:rgba(255,255,255,.2);border-radius:11px}
+  header .hdr-top{display:flex;align-items:center;justify-content:space-between}
+  header .higreet{display:flex;align-items:center;gap:14px;margin:22px 0 4px}
+  header .hi{color:#fff;font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:800;margin:0;line-height:1.12}
+  header .ava{flex:none;width:56px;height:56px;border-radius:50%;border:2.5px solid rgba(255,255,255,.55);background:rgba(255,255,255,.16);color:#fff;font-family:'Poppins',sans-serif;font-weight:800;font-size:1.1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:visible;padding:0;position:relative}
+  header .ava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+  header .ava .ini{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+  header .ava .cam{position:absolute;bottom:-3px;right:-3px;width:22px;height:22px;border-radius:50%;background:var(--coral);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;border:2.5px solid var(--forest);line-height:1}
 
   .higreet{display:flex;align-items:center;gap:13px;margin:22px 0 8px}
   .ava{flex:none;width:48px;height:48px;border-radius:50%;background:var(--mint);color:var(--forest);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:1.05rem}
@@ -202,9 +209,12 @@ details.prof[open]>summary::after{content:'⌃'}
 </div>
 
 <div id="app">
-  <header><div class="wrap"><a href="index.html" style="text-decoration:none"><span class="brand">Chloé Domicile</span></a><button class="out" onclick="logout()">Déconnexion</button></div></header>
+  <header><div class="wrap">
+    <div class="hdr-top"><a href="index.html" style="text-decoration:none"><span class="brand">Chloé Domicile</span></a><button class="out" onclick="logout()">Déconnexion</button></div>
+    <div class="higreet"><button type="button" class="ava" id="ava" onclick="avatarTap()">··</button><div class="hi" id="hi">Bonjour 👋</div></div>
+  </div></header>
+  <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="uploadPhoto(event)">
   <div class="wrap">
-    <div class="higreet"><span class="ava" id="ava">··</span><div class="hi" id="hi">Bonjour 👋</div></div>
     <div id="body"><div class="loading">Chargement…</div></div>
   </div>
 </div>
@@ -224,7 +234,31 @@ function minBetween(deb,fin){const a=deb.split(':').map(Number),b=fin.split(':')
 function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function ptStatut(s){return s==='valide'?'<span class="badge b-ok">validée</span>':s==='conteste'?'<span class="badge b-no">contestée</span>':'<span class="badge b-wait">à valider</span>';}
 function ptLine(p,withName){const d=new Date(p.date+'T00:00');return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · '+(p.debut||'')+(p.fin?'–'+p.fin:'')+' ('+Math.round(p.minutes/6)/10+'h)';}
-function setHello(txt,name){const hi=document.getElementById('hi');if(hi)hi.textContent=txt;const a=document.getElementById('ava');if(a)a.textContent=(name&&name.trim()?name.trim().slice(0,2):'··').toUpperCase();}
+function setHello(txt,name,photo,canUpload){
+  const hi=document.getElementById('hi'); if(hi)hi.textContent=txt;
+  const a=document.getElementById('ava'); if(!a)return;
+  const inner = photo
+    ? '<img src="'+photo+'" alt="">'
+    : '<span class="ini">'+((name&&name.trim()?name.trim().slice(0,2):'··').toUpperCase())+'</span>';
+  a.innerHTML = inner + (canUpload ? '<span class="cam" title="Changer la photo">＋</span>' : '');
+  a.dataset.up = canUpload ? '1' : '';
+}
+window.avatarTap=()=>{ const a=document.getElementById('ava'); if(a&&a.dataset.up==='1'){ document.getElementById('photoInput').click(); } };
+window.uploadPhoto=(ev)=>{
+  const f=ev.target.files&&ev.target.files[0]; if(!f||!myInterv){return;}
+  const rd=new FileReader();
+  rd.onload=()=>{ const img=new Image(); img.onload=async()=>{
+    const S=320, c=document.createElement('canvas'); c.width=S; c.height=S;
+    const ctx=c.getContext('2d'); const m=Math.min(img.width,img.height);
+    ctx.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
+    const data=c.toDataURL('image/jpeg',0.82);
+    const {error}=await sb.from('intervenants').update({photo:data}).eq('id',myInterv.id);
+    if(error){alert('Échec de l\'enregistrement : '+error.message);return;}
+    myInterv.photo=data; renderIntervenant();
+  }; img.src=rd.result; };
+  rd.readAsDataURL(f);
+  ev.target.value='';
+};
 window.navGo=(label)=>{
   if(label==='__top'){window.scrollTo({top:0,behavior:'smooth'});return;}
   const hs=[...document.querySelectorAll('#app h2')];
@@ -541,7 +575,7 @@ async function renderIntervenant(){
   }
   const esc=s=>(s||'').replace(/"/g,'&quot;');
   const validated=prof.statut==='valide', refused=prof.statut==='refuse', needCasier=!prof.casier_ok;
-  setHello('Bonjour'+(prof.prenom?' '+prof.prenom:(prof.nom?' '+prof.nom:''))+' 👋', prof.prenom||prof.nom||'');
+  setHello('Bonjour'+(prof.prenom?' '+prof.prenom:(prof.nom?' '+prof.nom:''))+' 👋', prof.prenom||prof.nom||'', prof.photo, true);
   const casB=prof.casier_ok?'<span class="badge b-ok">🛡️ Casier vérifié</span>':'<span class="badge b-wait">Casier à fournir</span>';
   const _p=new Date(); _p.setDate(1); _p.setMonth(_p.getMonth()-1);
   const PY=_p.getFullYear(), PM=_p.getMonth()+1;
