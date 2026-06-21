@@ -339,12 +339,14 @@ function render(){
       const isNew=i.statut==='a_verifier';
       const stBadge=i.statut==='valide'?'<span class="badge b-ok">Validé</span>':i.statut==='refuse'?'<span class="badge b-wait">Refusé</span>':'<span class="badge b-new">À vérifier</span>';
       const casBadge = i.casier_ok ? '<span class="badge b-cas-ok">🛡️ Casier vérifié</span>'
-        : (i.casier_consent ? '<span class="badge b-cas-no">Casier à vérifier</span>' : '<span class="badge b-cas-no">Casier non accepté</span>');
+        : (i.casier_doc ? '<span class="badge b-wait">📄 Document reçu — à vérifier</span>'
+        : (i.casier_consent ? '<span class="badge b-cas-no">Casier à fournir</span>' : '<span class="badge b-cas-no">Casier non accepté</span>'));
       return '<div class="item '+(isNew?'new':'')+'">'
         +'<div class="top"><div class="who">'+(i.nom||'—')+'</div><div class="date">'+fmtDate(i.created_at)+'</div></div>'
         +'<div class="badges">'+stBadge+casBadge+'</div>'
         +'<div class="meta">📞 '+tel(i.telephone)+' · 📍 '+(i.zone||'-')+'<br>🧰 '+((i.services||[]).join(', ')||'-')+(i.specialites?'<br>⭐ '+i.specialites:'')+(i.experience?'<br>⏳ '+i.experience+' ans':'')+(i.disponibilites?'<br>🕑 '+i.disponibilites:'')+'</div>'
         +'<div class="actions">'
+        +(i.casier_doc?'<button class="act" onclick="openDoc(\''+i.id+'\')">📄 Voir le casier</button>':'')
         +'<button class="act '+(i.casier_ok?'on':'')+'" onclick="setCasier(\''+i.id+'\','+(!i.casier_ok)+')">'+(i.casier_ok?'🛡️ Casier OK':'Marquer casier vérifié')+'</button>'
         +'<button class="act green '+(i.statut==='valide'?'on':'')+'" onclick="setI(\''+i.id+'\',\'valide\')">Valider</button>'
         +'<button class="act red '+(i.statut==='refuse'?'on':'')+'" onclick="setI(\''+i.id+'\',\'refuse\')">Refuser</button>'
@@ -372,6 +374,14 @@ async function matchDemande(id){
     box.innerHTML='<div style="margin-top:10px;font-weight:800;font-size:.82rem;color:var(--forest)">✨ Intervenants proposés</div>'+ms.map(x=>'<div style="background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:7px"><b>'+(x.nom||'—')+'</b> <span class="badge b-ok">'+(x.score||0)+'%</span>'+(x.casier_ok?' <span class="badge b-cas-ok">🛡️</span>':'')+'<div class="meta">'+(x.zone||'')+(x.specialites?' · '+x.specialites:'')+'</div><div style="font-size:.86rem;margin-top:3px">'+(x.raison||'')+'</div>'+(x.id?'<button class="act green" style="margin-top:8px;width:100%" onclick="createMissionFromMatch(\''+id+'\',\''+x.id+'\')">✅ Créer la mission avec '+(x.nom||'cette personne').replace(/\x27/g,"")+'</button>':'')+'</div>').join('');
   }catch(e){box.innerHTML='<div class="meta" style="margin-top:8px;color:var(--coral-deep)">Erreur matching : '+(e.message||e)+'</div>';}
 }
+window.openDoc=(id)=>{
+  const i=dataI.find(x=>x.id===id); if(!i||!i.casier_doc)return;
+  try{
+    const p=i.casier_doc.split(','), mime=(p[0].match(/data:([^;]+)/)||[])[1]||'application/octet-stream';
+    const bin=atob(p[1]), arr=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++)arr[k]=bin.charCodeAt(k);
+    const url=URL.createObjectURL(new Blob([arr],{type:mime})); window.open(url,'_blank');
+  }catch(e){ window.open(i.casier_doc,'_blank'); }
+};
 async function setCasier(id,val){await sb.from('intervenants').update({casier_ok:val}).eq('id',id);const x=dataI.find(i=>i.id===id);if(x)x.casier_ok=val;render();}
 async function setI(id,statut){
   if(statut==='valide'){const x0=dataI.find(i=>i.id===id);if(x0&&!x0.casier_ok){alert('⚠️ Vérifiez d\'abord le casier judiciaire (bulletin n° 3) avant de valider cet intervenant.');return;}}
