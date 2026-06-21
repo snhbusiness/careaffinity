@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Chloé Domicile">
 <link rel="apple-touch-icon" href="icon-512.png">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Mulish:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Mulish:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --cream:#FBF5F0; --card:#fff; --line:#EADBD0;
@@ -94,6 +94,35 @@
   .cre-add button{background:var(--forest);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
   .mlink{display:flex;gap:8px;align-items:center;background:var(--cream);border:1px dashed var(--line);border-radius:9px;padding:8px 10px;margin-top:8px;font-size:.8rem;word-break:break-all}
   .mlink button{flex:none;background:var(--forest);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
+</style>
+<style>
+  /* ===== Refonte design cockpit (teal / mint / corail, Poppins) ===== */
+  :root{
+    --cream:#EEF5F3; --card:#fff; --line:#E4EEEB;
+    --coral:#F2937B; --coral-deep:#E0735A; --coral-tint:#FCE7E0;
+    --forest:#0E6E63; --forest-soft:#127A6E; --teal2:#2BA597; --mint:#DCEFEA;
+    --ink:#173A35; --muted:#6E807C;
+    --ok:#1FA971; --ok-tint:#D9F0E5; --warn:#C98A1E; --warn-tint:#FBEBD0;
+    --amber:#F2B600; --red:#E8506B; --green:#34C77B;
+  }
+  body{font-family:'Poppins',system-ui,sans-serif}
+  h1,h2,h3{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.015em}
+  .brand{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-.01em}
+
+  header{background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%) !important;border-radius:0 0 24px 24px;padding:14px 0 18px}
+  header .brand{color:#fff;font-size:1.25rem}
+  header .out{background:rgba(255,255,255,.2);border-radius:11px}
+
+  .tab{border:none;background:#fff;box-shadow:0 8px 20px -18px rgba(15,70,63,.5);border-radius:14px;color:var(--muted)}
+  .tab.on{background:var(--mint);color:var(--forest);box-shadow:none}
+  .tab .count{background:var(--coral)}
+
+  .item{border:none;border-radius:20px;box-shadow:0 14px 32px -24px rgba(15,70,63,.55);padding:16px}
+  .box{border:none;border-radius:24px;box-shadow:0 20px 46px -28px rgba(15,70,63,.5)}
+  .empty{border-radius:18px}
+  input:focus{border-color:var(--forest)}
+  .plan{background:var(--mint)}
+  .b-proche{background:var(--mint);color:var(--forest)}
 </style>
 </head>
 <body>
@@ -257,7 +286,7 @@ function renderToday(box,info){
   if(demCours.length) cards.push(card('📞','', '<b>'+demCours.length+'</b> demande'+s(demCours.length)+' en cours à suivre', 'Voir', "show('demandes')"));
   if(intCas.length)  cards.push(card('🛡️','', '<b>'+intCas.length+'</b> intervenant'+s(intCas.length)+' en attente de casier (à relancer)', 'Voir', "show('intervenants')"));
 
-  let h='<div class="item" style="background:var(--forest);color:#fff;border:none"><div class="who" style="color:#fff;font-size:1.15rem">Bonjour Chloé 👋</div>'
+  let h='<div class="item" style="background:linear-gradient(135deg,var(--forest) 0%,var(--teal2) 100%);color:#fff;border:none;border-radius:22px"><div class="who" style="color:#fff;font-size:1.15rem">Bonjour Chloé 👋</div>'
     +'<div class="meta" style="color:#cfe3dc;margin-top:2px">'+(cards.length?'Voici ce qui vous attend aujourd\'hui.':'Tout est à jour, rien d\'urgent. ✨')+'</div></div>';
   if(cards.length){ h+=cards.join(''); }
   else { h+='<div class="empty">Aucune action urgente. Profitez-en ! ☕<br><span style="font-size:.85rem;color:var(--muted)">Les nouvelles demandes et inscriptions remonteront ici automatiquement.</span></div>'; }
