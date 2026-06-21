@@ -1,6 +1,6 @@
 // Chloé Domicile — service worker (notifications push + auto-update)
 // 🔁 Pour forcer une mise à jour de l'app installée : change ce numéro de version.
-const VERSION = '2026-06-14-27';
+const VERSION = '2026-06-14-28';
 
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
